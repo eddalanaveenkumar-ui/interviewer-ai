@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Interview — InterviewAI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet" />
+    <!-- CodeMirror 6 -->
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@6.0.1/dist/codemirror.bundle.min.js"></script>
+    <!-- TF.js (needed for COCO-SSD object detection) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js" crossorigin="anonymous"></script>
+    <!-- COCO-SSD: detects phone, book, laptop, person, cell phone, etc. -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"
+        crossorigin="anonymous"></script>
+    <!-- face-api.js — high accuracy SSD + 68-point landmarks + expressions -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/dist/face-api.js"
+        crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="/static/css/main.css" />
+    <style>
+        body {
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Top Bar ── */
+        .iv-topbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .iv-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .iv-topbar-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .timer {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-warning);
+            background: rgba(245, 158, 11, .1);
+            border: 1px solid rgba(245, 158, 11, .3);
+            padding: 0.3rem 0.9rem;
+            border-radius: var(--radius-full);
+        }
+
+        .timer.urgent {
+            color: var(--accent-danger);
+            background: rgba(239, 68, 68, .1);
+            border-color: rgba(239, 68, 68, .3);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .6
+            }
+        }
+
+        .q-counter {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .progress-wrap {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        /* ── Main Layout ── */
+        .iv-layout {
+            flex: 1;
+            display: grid;
+            overflow: hidden;
+            grid-template-columns: 1fr 320px;
+            grid-template-rows: 1fr;
+        }
+
+        /* ── Left: Interview Area ── */
+        .iv-main {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border-subtle);
+        }
+
+        /* Question Panel */
+        .question-panel {
+            padding: 1.5rem 2rem;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(6, 182, 212, 0.03));
+            border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        .q-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .q-num {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .difficulty-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .difficulty-dots .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+        }
+
+        .difficulty-dots .dot.filled {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .q-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+        }
+
+        .q-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .q-hint {
+            background: rgba(6, 182, 212, .08);
+            border: 1px solid rgba(6, 182, 212, .2);
+            color: #67e8f9;
+            border-radius: var(--radius-md);
+            padding: 0.6rem 1rem;
+            font-size: 0.82rem;
+            margin-top: 0.75rem;
+            display: none;
+        }
+
+        .q-hint.show {
+            display: block;
+        }
+
+        .ai-transition {
+            font-size: 0.85rem;
+            color: var(--accent-secondary);
+            font-style: italic;
+            padding: 0.5rem 0;
+            display: none;
+        }
+
+        .ai-transition.show {
+            display: block;
+        }
+
+        /* Answer Tabs */
+        .answer-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+            padding: 0 1.5rem;
+        }
+
+        /* Answer Type Selector — big card-style buttons */
+        .answer-tabs {
+            display: flex;
+            gap: 0.6rem;
+            padding: 0.75rem 1.5rem 0;
+        }
+
+        .answer-tab {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.7rem 0.5rem;
+            border-radius: var(--radius-md);
+            border: 2px solid var(--border-subtle);
+            background: var(--bg-elevated);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .answer-tab .tab-icon {
+            font-size: 1.35rem;
+            line-height: 1;
+        }
+
+        .answer-tab .tab-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .answer-tab .tab-desc {
+            font-size: 0.67rem;
+            color: var(--text-muted);
+            opacity: .7;
+        }
+
+        .answer-tab:hover:not(.active) {
+            border-color: var(--border-default);
+            background: var(--bg-card);
+        }
+
+        /* Text active */
+        .answer-tab.active[id="tab-text"] {
+            border-color: var(--accent-primary);
+            background: rgba(99, 102, 241, .1);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+        }
+
+        .answer-tab.active[id="tab-text"] .tab-label {
+            color: var(--accent-primary);
+        }
+
+        /* Code active */
+        .answer-tab.active[id="tab-code"] {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, .1);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, .15);
+        }
+
+        .answer-tab.active[id="tab-code"] .tab-label {
+            color: #f59e0b;
+        }
+
+        /* Voice active */
+        .answer-tab.active[id="tab-voice"] {
+            border-color: var(--accent-success);
+            background: rgba(16, 185, 129, .1);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, .15);
+        }
+
+        .answer-tab.active[id="tab-voice"] .tab-label {
+            color: var(--accent-success);
+        }
+
+        /* Answer Areas */
+        .answer-area {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .answer-panel {
+            flex: 1;
+            overflow: hidden;
+            display: none;
+        }
+
+        .answer-panel.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Text Answer */
+        .text-answer-wrap {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        #text-answer {
+            flex: 1;
+            min-height: 140px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            padding: 1rem;
+            resize: none;
+            transition: all var(--transition);
+        }
+
+        #text-answer:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
+        }
+
+        /* Code Editor */
+        .code-wrap {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem 1.5rem;
+            gap: 0.5rem;
+        }
+
+        .code-lang-bar {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        #code-editor-container {
+            flex: 1;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+            background: #0d1117;
+        }
+
+        .cm-editor {
+            height: 100% !important;
+            font-family: var(--font-mono) !important;
+            font-size: 0.9rem !important;
+        }
+
+        .cm-content {
+            padding: 1rem !important;
+        }
+
+        /* Voice Panel */
+        .voice-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            padding: 2rem;
+        }
+
+        .voice-viz {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: var(--bg-elevated);
+            border: 2px solid var(--border-default);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .voice-viz.recording {
+            border-color: var(--accent-danger);
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, .6);
+            animation: voicePulse 1.5s infinite;
+        }
+
+        @keyframes voicePulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, .6)
+            }
+
+            70% {
+                box-shadow: 0 0 0 20px rgba(239, 68, 68, 0)
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0)
+            }
+        }
+
+        .voice-icon {
+            font-size: 3rem;
+        }
+
+        .voice-status {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .voice-transcript {
+            width: 100%;
+            max-width: 500px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            min-height: 80px;
+            line-height: 1.6;
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* Submit Bar */
+        .submit-bar {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--bg-surface);
+            flex-shrink: 0;
+        }
+
+        .submit-bar-left {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .submit-bar-right {
+            margin-left: auto;
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* AI Feedback Toast (inline) */
+        .ai-feedback {
+            margin: 0 1.5rem 1rem;
+            padding: 1rem 1.25rem;
+            background: rgba(99, 102, 241, .08);
+            border: 1px solid rgba(99, 102, 241, .25);
+            border-radius: var(--radius-md);
+            display: none;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .ai-feedback.show {
+            display: flex;
+        }
+
+        .feedback-scores {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .fscore {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            align-items: center;
+        }
+
+        .fscore-val {
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+
+        .fscore-lbl {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        /* ── Right: Monitoring Panel ── */
+        .iv-sidebar {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-surface);
+            overflow-y: auto;
+        }
+
+        .monitor-section {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .monitor-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        /* Camera Feed */
+        .camera-container {
+            position: relative;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 4/3;
+        }
+
+        #camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        #camera-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, .7));
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .camera-status {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .rec-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-danger);
+            animation: recBlink 1s infinite;
+        }
+
+        @keyframes recBlink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .2
+            }
+        }
+
+        .face-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: rgba(0, 0, 0, .7);
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 0.2rem 0.5rem;
+            border-radius: var(--radius-full);
+        }
+
+        /* Monitor Events */
+        .event-log {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .event-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 0.4rem 0.6rem;
+            font-size: 0.75rem;
+        }
+
+        .event-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .event-dot.warn {
+            background: var(--accent-warning);
+        }
+
+        .event-dot.danger {
+            background: var(--accent-danger);
+        }
+
+        .event-dot.ok {
+            background: var(--accent-success);
+        }
+
+        .event-dot.info {
+            background: var(--accent-secondary);
+        }
+
+        .event-text {
+            color: var(--text-secondary);
+            flex: 1;
+        }
+
+        .event-time {
+            color: var(--text-muted);
+            font-size: 0.68rem;
+        }
+
+        .violation-count {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .violation-count.danger {
+            color: var(--accent-danger);
+        }
+
+        .violation-count.warn {
+            color: var(--accent-warning);
+        }
+
+        .violation-count.ok {
+            color: var(--accent-success);
+        }
+
+        /* Answer History */
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.78rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .hist-q {
+            color: var(--text-secondary);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .hist-score {
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+
+        .hist-score.high {
+            color: var(--accent-success);
+        }
+
+        .hist-score.mid {
+            color: var(--accent-warning);
+        }
+
+        .hist-score.low {
+            color: var(--accent-danger);
+        }
+
+        /* End Session Button */
+        .end-section {
+            padding: 1rem;
+            margin-top: auto;
+        }
+
+        /* Loading overlay */
+        .thinking-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background: rgba(8, 11, 20, .85);
+            backdrop-filter: blur(8px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+
+        .thinking-overlay.show {
+            display: flex;
+        }
+
+        .thinking-ring {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 4px solid rgba(99, 102, 241, .2);
+            border-top-color: var(--accent-primary);
+            animation: spin 1s linear infinite;
+        }
+
+        .thinking-text {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .thinking-subtext {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Top Bar -->
+    <div class="iv-topbar">
+        <div class="iv-title">🤖 InterviewAI <span class="badge badge-primary">{{ session_type | capitalize }}</span>
+        </div>
+        <div class="progress-wrap">
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+            </div>
+        </div>
+        <div class="q-counter" id="q-counter">Question 1 of 10</div>
+        <div class="timer" id="timer">45:00</div>
+        <div class="iv-topbar-right">
+            <button class="btn btn-ghost btn-sm" onclick="showHint()">💡 Hint</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmEnd()">⏹ End</button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="iv-layout">
+
+        <!-- Left: Interview -->
+        <div class="iv-main">
+
+            <!-- Question -->
+            <div class="question-panel" id="question-panel">
+                <div class="q-meta">
+                    <span class="q-num" id="q-num-label">QUESTION 1</span>
+                    <div class="difficulty-dots" id="diff-dots">
+                        <div class="dot filled"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                    <span class="badge badge-cyan" id="q-topic">Loading…</span>
+                    <span class="badge badge-primary" id="q-type-badge">Text</span>
+                </div>
+                <div class="ai-transition" id="ai-transition"></div>
+                <div class="q-text" id="q-text">Connecting to AI interviewer…</div>
+                <div class="q-hint" id="q-hint"></div>
+            </div>
+
+            <!-- AI Inline Feedback -->
+            <div class="ai-feedback" id="ai-feedback">
+                <div style="font-size:.85rem;font-weight:700;color:var(--text-primary)">🤖 AI Evaluation</div>
+                <div class="feedback-scores" id="feedback-scores"></div>
+                <div style="font-size:.82rem;color:var(--text-secondary)" id="feedback-summary"></div>
+            </div>
+
+            <!-- Answer Type Selector -->
+            <div class="answer-tabs">
+                <div class="answer-tab active" id="tab-text" onclick="switchTab('text')" title="Type your answer">
+                    <span class="tab-icon">✏️</span>
+                    <span class="tab-label">Text</span>
+                    <span class="tab-desc">Type answer</span>
+                </div>
+                <div class="answer-tab" id="tab-code" onclick="switchTab('code')" title="Write code">
+                    <span class="tab-icon">💻</span>
+                    <span class="tab-label">Code</span>
+                    <span class="tab-desc">Editor + run</span>
+                </div>
+                <div class="answer-tab" id="tab-voice" onclick="switchTab('voice')" title="Speak your answer">
+                    <span class="tab-icon">🎤</span>
+                    <span class="tab-label">Mic</span>
+                    <span class="tab-desc">Voice / STT</span>
+                </div>
+            </div>
+
+            <!-- Answer Panels -->
+            <div class="answer-area">
+                <!-- Text -->
+                <div class="answer-panel active" id="panel-text">
+                    <div class="text-answer-wrap">
+                        <textarea id="text-answer" placeholder="Type your answer here. Be clear and concise…"
+                            autocomplete="off" spellcheck="true"></textarea>
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-size:.75rem;color:var(--text-muted)" id="word-count">0 words</span>
+                            <span style="font-size:.75rem;color:var(--text-muted)">Use structured answers: state →
+                                reasoning → example</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code -->
+                <div class="answer-panel" id="panel-code">
+                    <div class="code-wrap">
+                        <div class="code-lang-bar">
+                            <select id="lang-select" class="form-select"
+                                style="width:auto;padding:.3rem .75rem;font-size:.82rem" onchange="changeLanguage()">
+                                <option value="python">Python</option>
+                                <option value="javascript">JavaScript</option>
+                                <option value="java">Java</option>
+                                <option value="cpp">C++</option>
+                                <option value="sql">SQL</option>
+                            </select>
+                            <button class="btn btn-ghost btn-sm" onclick="clearCode()">🗑 Clear</button>
+                        </div>
+                        <div id="code-editor-container">
+                            <textarea id="code-editor"
+                                style="width:100%;height:100%;background:#0d1117;color:#e2e8f0;font-family:var(--font-mono);font-size:.9rem;padding:1rem;border:none;outline:none;resize:none;">
+# Write your solution here
+def solution():
+    pass
+</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Voice -->
+                <div class="answer-panel" id="panel-voice">
+                    <div class="voice-wrap">
+                        <div class="voice-viz" id="voice-viz" onclick="toggleRecording()">
+                            <div class="voice-icon" id="voice-icon">🎤</div>
+                        </div>
+                        <div class="voice-status" id="voice-status">Click to start recording</div>
+                        <div class="voice-transcript" id="voice-transcript">Your speech will appear here in real-time…
+                        </div>
+                        <div class="voice-controls">
+                            <button class="btn btn-primary" id="voice-record-btn" onclick="toggleRecording()">🔴 Start
+                                Recording</button>
+                            <button class="btn btn-ghost" onclick="clearTranscript()">🗑 Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Bar -->
+            <div class="submit-bar">
+                <div class="submit-bar-left">
+                    <span style="font-size:.82rem;color:var(--text-muted)" id="active-tab-label">Text Answer</span>
+                </div>
+                <div class="submit-bar-right">
+                    <button class="btn btn-ghost btn-sm" onclick="skipQuestion()">Skip →</button>
+                    <button class="btn btn-primary" id="submit-btn" onclick="submitAnswer()">
+                        Submit Answer ➤
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Monitoring Sidebar -->
+        <div class="iv-sidebar">
+
+            <!-- Camera -->
+            <div class="monitor-section">
+                <div class="monitor-title">Camera Monitor</div>
+                <div class="camera-container">
+                    <video id="camera-feed" autoplay muted playsinline></video>
+                    <canvas id="camera-canvas"></canvas>
+                    <div class="camera-overlay">
+                        <div class="rec-dot"></div>
+                        <div class="camera-status" id="camera-status">Initializing…</div>
+                    </div>
+                    <div class="face-badge" id="face-badge">No Face</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.5rem">
+                    <span style="font-size:.75rem;color:var(--text-muted)">AI Vision Active</span>
+                    <span class="badge badge-danger" id="face-status-badge">Offline</span>
+                </div>
+            </div>
+
+            <!-- AI Behaviour Analysis Panel -->
+            <div class="monitor-section" id="ai-analysis-section">
+                <div class="monitor-title">AI Behaviour Analysis</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.5rem">
+                    <div
+                        style="background:var(--bg-card);border-radius:var(--radius-sm);padding:.55rem;text-align:center">
+                        <div
+                            style="font-size:.62rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">
+                            Emotion</div>
+                        <div id="emotion-display"
+                            style="font-size:.88rem;font-weight:700;color:var(--text-primary);margin-top:.1rem">—</div>
+                    </div>
+                    <div
+                        style="background:var(--bg-card);border-radius:var(--radius-sm);padding:.55rem;text-align:center">
+                        <div
+                            style="font-size:.62rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">
+                            Gaze</div>
+                        <div id="gaze-display"
+                            style="font-size:.88rem;font-weight:700;color:var(--text-primary);margin-top:.1rem">—</div>
+                    </div>
+                    <div
+                        style="background:var(--bg-card);border-radius:var(--radius-sm);padding:.55rem;text-align:center">
+                        <div
+                            style="font-size:.62rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">
+                            Head Pose</div>
+                        <div id="pose-display"
+                            style="font-size:.88rem;font-weight:700;color:var(--text-primary);margin-top:.1rem">—</div>
+                    </div>
+                    <div
+                        style="background:var(--bg-card);border-radius:var(--radius-sm);padding:.55rem;text-align:center">
+                        <div
+                            style="font-size:.62rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">
+                            Attention</div>
+                        <div id="attention-display"
+                            style="font-size:.88rem;font-weight:700;color:var(--accent-success);margin-top:.1rem">—
+                        </div>
+                    </div>
+                </div>
+                <!-- Object alert: phone, book, etc. -->
+                <div id="object-alert"
+                    style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:var(--radius-sm);padding:.4rem .6rem;font-size:.75rem;color:var(--accent-danger);font-weight:600">
+                </div>
+                <!-- TTS control -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.5rem">
+                    <span style="font-size:.72rem;color:var(--text-muted)">AI Voice</span>
+                    <div style="display:flex;gap:.4rem">
+                        <button class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;font-size:.72rem"
+                            onclick="replayQuestion()" title="Replay question">🔊 Replay</button>
+                        <button class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;font-size:.72rem"
+                            onclick="toggleMute()" id="mute-btn" title="Mute AI voice">🔇 Mute</button>
+                    </div>
+                </div>
+                <div id="tts-status" style="font-size:.7rem;color:var(--text-muted);margin-top:.2rem;min-height:14px">
+                </div>
+            </div>
+
+            <!-- Integrity Monitor -->
+            <div class="monitor-section">
+                <div class="monitor-title">Integrity Monitor</div>
+                <div style="display:flex;gap:1rem;margin-bottom:.75rem">
+                    <div>
+                        <div class="violation-count ok" id="violation-count">0</div>
+                        <div style="font-size:.72rem;color:var(--text-muted)">Violations</div>
+                    </div>
+                    <div>
+                        <div style="font-size:1.5rem;font-weight:800;color:var(--accent-success)" id="integrity-score">
+                            100%</div>
+                        <div style="font-size:.72rem;color:var(--text-muted)">Integrity</div>
+                    </div>
+                </div>
+                <div class="event-log" id="event-log">
+                    <div class="event-item">
+                        <div class="event-dot ok"></div>
+                        <div class="event-text">Session started</div>
+                        <div class="event-time" id="start-time-log"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Answer History -->
+            <div class="monitor-section">
+                <div class="monitor-title">Answer History</div>
+                <div class="history-list" id="history-list">
+                    <div style="font-size:.78rem;color:var(--text-muted);padding:.5rem">No answers yet…</div>
+                </div>
+            </div>
+
+            <!-- End Session -->
+            <div class="end-section">
+                <button class="btn btn-danger w-full" onclick="confirmEnd()"> End &amp; Get Report</button>
+                <div style="font-size:.72rem;color:var(--text-muted);text-align:center;margin-top:.4rem">
+                    Minimum 1 answered question required
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thinking Overlay -->
+    <div class="thinking-overlay" id="thinking-overlay">
+        <div class="thinking-ring"></div>
+        <div class="thinking-text">🤖 AI is analyzing your answer…</div>
+        <div class="thinking-subtext" id="thinking-sub">Evaluating correctness, depth, and communication…</div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="/static/js/monitor.js"></script>
+    <script src="/static/js/voice.js"></script>
+    <script>
+        // ─────────────────────────────────────────────────
+        const SESSION_ID = "{{ session_id }}";
+        const SESSION_TYPE = "{{ session_type }}";
+        const CANDIDATE_NAME = "{{ user.name }}";
+        let currentQuestion = null;
+        let activeTab = "text";
+        let questionNum = 1;
+        let maxQuestions = 10;
+        let timerSeconds = 45 * 60;
+        let timerInterval = null;
+        let isSubmitting = false;
+        let answeredCount = 0;
+        let violations = 0;
+
+        // ── Init ─────────────────────────────────────────
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("start-time-log").textContent = new Date().toLocaleTimeString();
+            startTimer();
+            initCamera();
+            initMonitoring();
+            initTTS();
+            loadFirstQuestion();
+            // Word counter
+            document.getElementById("text-answer").addEventListener("input", updateWordCount);
+        });
+
+        function updateWordCount() {
+            const words = document.getElementById("text-answer").value.trim().split(/\s+/).filter(Boolean);
+            document.getElementById("word-count").textContent = `${words.length} words`;
+        }
+
+        // ── Load First Question ──────────────────────────
+        async function loadFirstQuestion() {
+            // The first question was generated at session start — fetch from server state
+            try {
+                const res = await fetch(`/api/report/${SESSION_ID}`);
+                // If session just started, we won't have a report — use stored question from start
+                // We'll use a separate endpoint to get current question
+            } catch (e) { }
+            // Show stored first question (already in interview_sessions)
+            await fetchCurrentQuestion();
+        }
+
+        async function fetchCurrentQuestion() {
+            // Get current state from server
+            try {
+                const res = await fetch(`/api/interview/current?session_id=${SESSION_ID}`);
+                if (res.ok) {
+                    const d = await res.json();
+                    displayQuestion(d.question, d.question_num, d.max_questions);
+                }
+            } catch (e) {
+                // Fallback: question was rendered server-side
+            }
+        }
+
+        function displayQuestion(q, num, max) {
+            if (!q) return;
+            currentQuestion = q;
+            questionNum = num || questionNum;
+            maxQuestions = max || maxQuestions;
+
+            // Question text
+            const qText = q.question || q;
+            document.getElementById('q-text').textContent = qText;
+            document.getElementById('q-num-label').textContent = `QUESTION ${questionNum}`;
+            document.getElementById('q-counter').textContent = `Question ${questionNum} of ${maxQuestions}`;
+
+            // ── TTS: AI reads the question aloud ──
+            speakText(qText);
+
+            // Topic & type badges
+            document.getElementById('q-topic').textContent = q.topic || 'General';
+            const typeMaps = { text: '✏️ Text', code: '💻 Code', verbal: '🎤 Verbal' };
+            document.getElementById('q-type-badge').textContent = typeMaps[q.type] || '✏️ Text';
+
+            // Difficulty dots
+            const diff = parseInt(q.difficulty) || 1;
+            const dots = document.querySelectorAll("#diff-dots .dot");
+            dots.forEach((d, i) => d.classList.toggle("filled", i < diff));
+
+            // Hint
+            const hintEl = document.getElementById("q-hint");
+            hintEl.textContent = q.hint ? `💡 Hint: ${q.hint}` : "";
+            hintEl.classList.remove("show");
+
+            // AI transition
+            const transEl = document.getElementById("ai-transition");
+            if (q.transition) {
+                transEl.textContent = `🤖 "${q.transition}"`;
+                transEl.classList.add("show");
+                setTimeout(() => transEl.classList.remove("show"), 6000);
+            }
+
+            // Auto-switch tab based on question type
+            if (q.type === "code") switchTab("code");
+            else if (q.type === "verbal") switchTab("voice");
+            else switchTab("text");
+
+            // Progress
+            const pct = Math.round(((questionNum - 1) / maxQuestions) * 100);
+            document.getElementById("progress-bar").style.width = `${pct}%`;
+
+            // Hide previous feedback
+            document.getElementById("ai-feedback").classList.remove("show");
+
+            // Clear answer areas — also reset STT state
+            document.getElementById('text-answer').value = '';
+            document.getElementById('code-editor').value = '# Write your solution here\ndef solution():\n    pass\n';
+            sttFinalText = '';  // reset voice transcript accumulator
+            stopRecording();    // stop mic if running between questions
+            const vt = document.getElementById('voice-transcript');
+            vt.innerHTML = '';
+            vt.textContent = 'Your speech will appear here in real-time\u2026';
+            document.getElementById('voice-status').textContent = 'Click to start recording';
+            updateWordCount();
+        }
+
+        // ── Tab Switching ──────────────────────────────
+        function switchTab(tab) {
+            activeTab = tab;
+            ["text", "code", "voice"].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.toggle("active", t === tab);
+                document.getElementById(`panel-${t}`).classList.toggle("active", t === tab);
+            });
+            const labels = { text: "Text Answer", code: "Code Answer", voice: "Voice Answer" };
+            document.getElementById("active-tab-label").textContent = labels[tab];
+        }
+
+        // ── Hint ──────────────────────────────────────
+        function showHint() {
+            document.getElementById("q-hint").classList.add("show");
+        }
+
+        // ── Get Answer ─────────────────────────────────
+        function getCurrentAnswer() {
+            if (activeTab === 'text') return document.getElementById('text-answer').value.trim();
+            if (activeTab === 'code') return document.getElementById('code-editor').value.trim();
+            if (activeTab === 'voice') {
+                // Use the accumulated final transcript from STT
+                const txt = sttFinalText.trim();
+                if (!txt) {
+                    // Fallback: read textContent (in case user typed)
+                    const tc = document.getElementById('voice-transcript').textContent;
+                    return tc.includes('will appear') || tc.includes('speak now') ? '' : tc.trim();
+                }
+                return txt;
+            }
+            return '';
+        }
+
+        // ── Submit Answer ──────────────────────────────
+        async function submitAnswer() {
+            if (isSubmitting) return;
+            const answer = getCurrentAnswer();
+            if (!answer || answer.length < 3) {
+                showToast("⚠️ Please provide an answer before submitting.", "warn");
+                return;
+            }
+
+            isSubmitting = true;
+            document.getElementById("submit-btn").disabled = true;
+            document.getElementById("thinking-overlay").classList.add("show");
+            document.getElementById("thinking-sub").textContent = "Evaluating correctness, depth, and communication…";
+
+            try {
+                const res = await fetch("/api/interview/answer", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        session_id: SESSION_ID,
+                        answer: answer,
+                        answer_type: activeTab
+                    })
+                });
+                const data = await res.json();
+                document.getElementById("thinking-overlay").classList.remove("show");
+
+                if (data.interview_complete) {
+                    // Generate report
+                    document.getElementById("thinking-overlay").classList.add("show");
+                    document.getElementById("thinking-sub").textContent = "Generating your comprehensive assessment report…";
+                    setTimeout(() => {
+                        window.location.href = `/report/${SESSION_ID}`;
+                    }, 2000);
+                    return;
+                }
+
+                // Show evaluation feedback
+                const ev = data.evaluation || {};
+                showFeedback(ev);
+
+                // Add to history
+                addHistory(questionNum, ev.overall || 65);
+                answeredCount++;
+
+                // Show next question
+                if (data.next_question) {
+                    questionNum = data.question_num;
+                    displayQuestion(data.next_question, data.question_num, data.max_questions);
+                    document.getElementById("progress-bar").style.width = `${data.progress_pct || 0}%`;
+                }
+
+            } catch (err) {
+                document.getElementById("thinking-overlay").classList.remove("show");
+                showToast("❌ Network error. Please check connection.", "error");
+            }
+
+            isSubmitting = false;
+            document.getElementById("submit-btn").disabled = false;
+        }
+
+        function showFeedback(ev) {
+            const fb = document.getElementById("ai-feedback");
+            const scores = document.getElementById("feedback-scores");
+            const dims = [
+                { k: "correctness", l: "Accuracy" },
+                { k: "communication", l: "Clarity" },
+                { k: "depth", l: "Depth" },
+                { k: "confidence", l: "Confidence" },
+                { k: "overall", l: "Overall" }
+            ];
+            scores.innerHTML = dims.map(d => {
+                const v = ev[d.k] || 0;
+                const col = v >= 75 ? "var(--accent-success)" : v >= 50 ? "var(--accent-warning)" : "var(--accent-danger)";
+                return `<div class="fscore"><div class="fscore-val" style="color:${col}">${v}%</div><div class="fscore-lbl">${d.l}</div></div>`;
+            }).join("");
+            document.getElementById("feedback-summary").textContent =
+                `💬 ${ev.feedback_summary || ""} ${ev.action_taken ? `· Next: ${ev.action_taken.replace("_", " ")}` : ""}`;
+            fb.classList.add("show");
+            setTimeout(() => fb.classList.remove("show"), 10000);
+        }
+
+        function addHistory(num, score) {
+            const list = document.getElementById("history-list");
+            if (list.children.length === 1 && list.children[0].style.padding) list.innerHTML = "";
+            const sc = score >= 75 ? "high" : score >= 50 ? "mid" : "low";
+            const q = currentQuestion?.question?.substring(0, 50) + "…" || `Q${num}`;
+            list.insertAdjacentHTML("beforeend",
+                `<div class="history-item">
+        <div class="hist-q">Q${num}: ${q}</div>
+        <div class="hist-score ${sc}">${score}%</div>
+      </div>`);
+        }
+
+        // ── Skip ───────────────────────────────────────
+        async function skipQuestion() {
+            if (isSubmitting) return;
+            if (!confirm("Skip this question? It will count as unanswered.")) return;
+            document.getElementById("text-answer").value = "[Skipped by candidate]";
+            await submitAnswer();
+        }
+
+        // ── End Interview ──────────────────────────────
+        function confirmEnd() {
+            if (answeredCount === 0) {
+                showToast("⚠️ Answer at least 1 question before ending.", "warn");
+                return;
+            }
+            if (!confirm("End the interview and generate your report?")) return;
+            endInterview();
+        }
+
+        async function endInterview() {
+            document.getElementById("thinking-overlay").classList.add("show");
+            document.getElementById("thinking-sub").textContent = "Generating your comprehensive assessment report…";
+            try {
+                await fetch("/api/interview/end", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: SESSION_ID })
+                });
+            } catch (e) { }
+            setTimeout(() => { window.location.href = `/report/${SESSION_ID}`; }, 1500);
+        }
+
+        // ── Timer ──────────────────────────────────────
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                const m = Math.floor(timerSeconds / 60);
+                const s = timerSeconds % 60;
+                const el = document.getElementById("timer");
+                el.textContent = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+                el.classList.toggle("urgent", timerSeconds < 300);
+                if (timerSeconds <= 0) { clearInterval(timerInterval); endInterview(); }
+            }, 1000);
+        }
+
+        // ── Camera + BlazeFace Detection ──────────────────
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: "user" } });
+                const video = document.getElementById("camera-feed");
+                video.srcObject = stream;
+                document.getElementById("camera-status").textContent = "Camera active · Loading AI model…";
+                document.getElementById("face-status-badge").textContent = "Loading…";
+                document.getElementById("face-status-badge").className = "badge badge-warning";
+
+                video.onloadedmetadata = async () => {
+                    const canvas = document.getElementById("camera-canvas");
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    await startFaceDetection(video, canvas);
+                };
+            } catch (e) {
+                document.getElementById("camera-status").textContent = "Camera denied or unavailable";
+                document.getElementById("face-badge").textContent = "No Camera";
+                document.getElementById("face-status-badge").textContent = "Offline";
+                document.getElementById("face-status-badge").className = "badge badge-danger";
+                logEvent("Camera access denied — monitoring limited", "warn");
+            }
+        }
+
+        // ════════════════════════════════════════════════════
+        // AI VISION: High-Accuracy Face + Object Monitoring
+        // ════════════════════════════════════════════════════
+        const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/model';
+        let cocoModel = null;
+        let faceModelsReady = false;
+        let isTTSMuted = false;
+        let lookAwayFrames = 0;
+        let lookAwayLogged = false;
+
+        // ── Camera init ─────────────────────────────────────────────────────
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+                });
+                const video = document.getElementById('camera-feed');
+                video.srcObject = stream;
+                document.getElementById('camera-status').textContent = 'Camera on · Loading AI models…';
+                document.getElementById('face-status-badge').textContent = 'Loading';
+                document.getElementById('face-status-badge').className = 'badge badge-warning';
+
+                video.onloadedmetadata = async () => {
+                    const canvas = document.getElementById('camera-canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    await loadAIModels(video, canvas);
+                };
+            } catch (e) {
+                document.getElementById('camera-status').textContent = 'Camera denied';
+                document.getElementById('face-status-badge').textContent = 'Offline';
+                document.getElementById('face-status-badge').className = 'badge badge-danger';
+                logEvent('Camera access denied — visual monitoring disabled', 'warn');
+            }
+        }
+
+        // ── Load all AI models in parallel ───────────────────────────────
+        async function loadAIModels(video, canvas) {
+            try {
+                document.getElementById('camera-status').textContent = 'Loading Face AI models…';
+
+                // Load face models (SSD is higher accuracy than tinyFaceDetector)
+                await Promise.all([
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
+                    faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL_URL),
+                ]);
+                faceModelsReady = true;
+                logEvent('Face AI ready (SSD + landmarks + expressions)', 'ok');
+
+                document.getElementById('camera-status').textContent = 'Loading object detector…';
+                // Load COCO-SSD for phone/book/laptop detection
+                cocoModel = await cocoSsd.load({ base: 'mobilenet_v2' });
+                logEvent('Object detection ready (COCO-SSD — 80 classes)', 'ok');
+
+                document.getElementById('camera-status').textContent = 'Live · Full AI Vision';
+                document.getElementById('face-status-badge').textContent = '★ Full AI';
+                document.getElementById('face-status-badge').className = 'badge badge-success';
+
+                startDetectionLoop(video, canvas);
+
+            } catch (err) {
+                console.error('AI model load error:', err);
+                document.getElementById('camera-status').textContent = 'Partial AI (model error)';
+                document.getElementById('face-status-badge').textContent = 'Partial';
+                document.getElementById('face-status-badge').className = 'badge badge-warning';
+                logEvent('Some AI models failed to load', 'warn');
+                // Still start loop with whatever loaded
+                startDetectionLoop(video, canvas);
+            }
+        }
+
+        // ── Main detection loop ───────────────────────────────────────────────────
+        async function startDetectionLoop(video, canvas) {
+            const ctx = canvas.getContext('2d');
+            let noFaceStreak = 0;
+            let prevFaceCount = -1;
+
+            // Suspicious objects to alert on
+            const SUSPICIOUS = ['cell phone', 'book', 'laptop', 'remote', 'keyboard'];
+            const ALLOWED_OBJ = new Set(['person', 'chair', 'bottle', 'cup']);
+            let lastObjAlert = 0;
+
+            async function runFrame() {
+                if (video.readyState < 2) { setTimeout(runFrame, 500); return; }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                try {
+                    // ────── FACE ANALYSIS ───────────────────────────
+                    if (faceModelsReady) {
+                        const detections = await faceapi
+                            .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                            .withFaceLandmarks()
+                            .withFaceExpressions();
+
+                        const resized = faceapi.resizeResults(detections, {
+                            width: canvas.width, height: canvas.height
+                        });
+
+                        const count = resized.length;
+                        const badge = document.getElementById('face-badge');
+
+                        if (count === 0) {
+                            noFaceStreak++;
+                            badge.textContent = '⚠ No Face';
+                            badge.style.background = 'rgba(239,68,68,.85)';
+                            document.getElementById('gaze-display').textContent = '—';
+                            document.getElementById('pose-display').textContent = '—';
+                            document.getElementById('attention-display').textContent = 'Away';
+                            document.getElementById('attention-display').style.color = 'var(--accent-danger)';
+                            if (noFaceStreak === 4) {
+                                logEvent('Face not detected (6s) — possible absence', 'danger');
+                                addViolation();
+                                reportEvent('face_not_detected', { streak: noFaceStreak });
+                                noFaceStreak = 0;
+                            }
+                        } else {
+                            noFaceStreak = 0;
+                            badge.textContent = count === 1 ? '1 Face ✓' : `${count} Faces ⚠`;
+                            badge.style.background = count === 1 ? 'rgba(16,185,129,.85)' : 'rgba(239,68,68,.85)';
+
+                            if (count > 1 && count !== prevFaceCount) {
+                                logEvent(`Multiple faces (${count}) — possible impersonation`, 'danger');
+                                addViolation();
+                                reportEvent('multiple_faces', { count });
+                            }
+
+                            resized.forEach((det, i) => {
+                                const { x, y, width, height } = det.detection.box;
+                                const score = Math.round(det.detection.score * 100);
+                                const color = count === 1 ? '#10b981' : '#ef4444';
+
+                                // Bounding box
+                                ctx.strokeStyle = color;
+                                ctx.lineWidth = 2;
+                                ctx.shadowColor = color; ctx.shadowBlur = 10;
+                                ctx.strokeRect(x, y, width, height);
+                                ctx.shadowBlur = 0;
+
+                                // Score label
+                                const label = count === 1 ? `Face ${i + 1} ✓ ${score}%` : `Face ${i + 1} ⚠ ${score}%`;
+                                ctx.fillStyle = count === 1 ? 'rgba(16,185,129,.9)' : 'rgba(239,68,68,.9)';
+                                const tw = ctx.measureText(label).width + 10;
+                                ctx.fillRect(x, Math.max(0, y - 22), tw, 22);
+                                ctx.fillStyle = '#fff';
+                                ctx.font = 'bold 11px Inter, sans-serif';
+                                ctx.fillText(label, x + 5, Math.max(14, y - 5));
+
+                                // ── Landmark dots ──
+                                if (det.landmarks) {
+                                    const pts = det.landmarks.positions;
+                                    // Draw eye corners (green dots)
+                                    [[36, 39, 42, 45]].flat().forEach(idx => {
+                                        if (!pts[idx]) return;
+                                        ctx.beginPath();
+                                        ctx.arc(pts[idx].x, pts[idx].y, 3, 0, Math.PI * 2);
+                                        ctx.fillStyle = '#6366f1';
+                                        ctx.fill();
+                                    });
+                                    // Nose tip
+                                    if (pts[30]) {
+                                        ctx.beginPath();
+                                        ctx.arc(pts[30].x, pts[30].y, 4, 0, Math.PI * 2);
+                                        ctx.fillStyle = '#f59e0b'; ctx.fill();
+                                    }
+
+                                    // ── Head pose estimation (i===0 only) ──
+                                    if (i === 0 && pts.length >= 68) {
+                                        const noseTip = pts[30];
+                                        const faceLeft = pts[0];
+                                        const faceRight = pts[16];
+                                        const chin = pts[8];
+                                        const browCenter = pts[27];
+
+                                        const faceCenterX = (faceLeft.x + faceRight.x) / 2;
+                                        const faceWidth = faceRight.x - faceLeft.x;
+                                        const yaw = ((noseTip.x - faceCenterX) / faceWidth) * 2; // -1 to +1
+
+                                        const faceCenterY = (browCenter.y + chin.y) / 2;
+                                        const faceHeight = chin.y - browCenter.y;
+                                        const pitch = ((noseTip.y - faceCenterY) / (faceHeight || 1)) * 2;
+
+                                        let poseLabel = 'Forward';
+                                        let gazeLabel = 'Screen';
+                                        let isLookingAway = false;
+
+                                        if (yaw > 0.25) { poseLabel = 'Right'; gazeLabel = 'Right'; isLookingAway = true; }
+                                        else if (yaw < -0.25) { poseLabel = 'Left'; gazeLabel = 'Left'; isLookingAway = true; }
+                                        else if (pitch > 0.25) { poseLabel = 'Down'; gazeLabel = 'Down ↓'; isLookingAway = true; }
+                                        else if (pitch < -0.3) { poseLabel = 'Up'; gazeLabel = 'Up ↑'; isLookingAway = false; }
+
+                                        document.getElementById('pose-display').textContent = poseLabel;
+                                        document.getElementById('pose-display').style.color =
+                                            poseLabel === 'Forward' ? 'var(--accent-success)' : 'var(--accent-warning)';
+
+                                        document.getElementById('gaze-display').textContent = gazeLabel;
+                                        document.getElementById('gaze-display').style.color =
+                                            gazeLabel === 'Screen' ? 'var(--accent-success)' : 'var(--accent-warning)';
+
+                                        if (isLookingAway) {
+                                            lookAwayFrames++;
+                                            document.getElementById('attention-display').textContent = 'Distracted';
+                                            document.getElementById('attention-display').style.color = 'var(--accent-warning)';
+                                            if (lookAwayFrames >= 4 && !lookAwayLogged) {
+                                                logEvent(`Head turned ${poseLabel} (6s) — possible cheating`, 'danger');
+                                                addViolation();
+                                                reportEvent('looking_away', { direction: poseLabel });
+                                                lookAwayLogged = true;
+                                            }
+                                        } else {
+                                            lookAwayFrames = 0;
+                                            lookAwayLogged = false;
+                                            document.getElementById('attention-display').textContent = 'Focused';
+                                            document.getElementById('attention-display').style.color = 'var(--accent-success)';
+                                        }
+                                    }
+                                }
+
+                                // ── Emotion analysis ──
+                                if (i === 0 && det.expressions) {
+                                    const exp = det.expressions;
+                                    const topEmotion = Object.entries(exp)
+                                        .sort((a, b) => b[1] - a[1])[0];
+                                    const emojiMap = {
+                                        happy: '😄 Happy', sad: '😢 Sad',
+                                        angry: '😠 Stressed', fearful: '😨 Nervous',
+                                        disgusted: '😕 Uncomfortable', surprised: '😮 Surprised',
+                                        neutral: '😐 Neutral'
+                                    };
+                                    const emoLabel = emojiMap[topEmotion[0]] || topEmotion[0];
+                                    document.getElementById('emotion-display').textContent = emoLabel;
+
+                                    // Draw emotion bar at bottom of face box
+                                    const emoConf = Math.round(topEmotion[1] * 100);
+                                    ctx.fillStyle = 'rgba(99,102,241,.8)';
+                                    ctx.fillRect(x, y + height + 2, width * (emoConf / 100), 4);
+                                    ctx.fillStyle = 'rgba(30,30,50,.7)';
+                                    ctx.fillRect(x + width * (emoConf / 100), y + height + 2,
+                                        width * (1 - emoConf / 100), 4);
+                                }
+                            });
+                        }
+                        prevFaceCount = count;
+                    }
+
+                    // ────── OBJECT DETECTION (phone, book, laptop) ─────────
+                    if (cocoModel && Date.now() - lastObjAlert > 1000) {
+                        const objects = await cocoModel.detect(video, 10, 0.55);
+                        const flagged = objects.filter(o => SUSPICIOUS.includes(o.class));
+
+                        flagged.forEach(obj => {
+                            const [ox, oy, ow, oh] = obj.bbox;
+                            const scaleX = canvas.width / video.videoWidth;
+                            const scaleY = canvas.height / video.videoHeight;
+                            const rx = ox * scaleX, ry = oy * scaleY;
+                            const rw = ow * scaleX, rh = oh * scaleY;
+
+                            // Red box
+                            ctx.strokeStyle = '#ef4444';
+                            ctx.lineWidth = 2; ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 12;
+                            ctx.strokeRect(rx, ry, rw, rh); ctx.shadowBlur = 0;
+
+                            // Label
+                            const objLabel = `⚠ ${obj.class} (${Math.round(obj.score * 100)}%)`;
+                            ctx.fillStyle = 'rgba(239,68,68,.9)';
+                            ctx.fillRect(rx, Math.max(0, ry - 20), ctx.measureText(objLabel).width + 10, 20);
+                            ctx.fillStyle = '#fff';
+                            ctx.font = 'bold 11px Inter, sans-serif';
+                            ctx.fillText(objLabel, rx + 5, Math.max(14, ry - 4));
+                        });
+
+                        const alertEl = document.getElementById('object-alert');
+                        if (flagged.length > 0) {
+                            const names = [...new Set(flagged.map(o => o.class))].join(', ');
+                            alertEl.textContent = `⚠️ Object detected: ${names}`;
+                            alertEl.style.display = 'block';
+                            if (Date.now() - lastObjAlert > 10000) {
+                                logEvent(`Suspicious object: ${names}`, 'danger');
+                                addViolation();
+                                reportEvent('object_detected', { objects: names });
+                            }
+                            lastObjAlert = Date.now();
+                        } else {
+                            alertEl.style.display = 'none';
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Detection frame error:', err.message);
+                }
+
+                setTimeout(runFrame, 1500); // 1.5s between frames
+            }
+
+            runFrame();
+        }
+
+        // ════════════════════════════════════════════════════
+        // TTS — AI Interviewer Voice (Neural Web Speech API)
+        // ════════════════════════════════════════════════════
+        let bestVoice = null;
+
+        function initTTS() {
+            if (!('speechSynthesis' in window)) return;
+            const loadVoices = () => {
+                const voices = window.speechSynthesis.getVoices();
+                const priority = [
+                    'Microsoft Aria Online (Natural) - English (United States)',
+                    'Microsoft Jenny Online (Natural) - English (United States)',
+                    'Google US English',
+                    'Microsoft David - English (United States)',
+                    'Samantha'
+                ];
+                for (const pv of priority) {
+                    bestVoice = voices.find(v => v.name === pv);
+                    if (bestVoice) break;
+                }
+                if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('en-')) || voices[0];
+                if (bestVoice) logEvent(`TTS voice: ${bestVoice.name}`, 'ok');
+            };
+            if (window.speechSynthesis.onvoiceschanged !== undefined)
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
+        }
+
+        function speakText(text) {
+            if (!('speechSynthesis' in window) || isTTSMuted) return;
+            window.speechSynthesis.cancel();
+            const utt = new SpeechSynthesisUtterance(text);
+            if (bestVoice) utt.voice = bestVoice;
+            utt.rate = 0.88;
+            utt.pitch = 1.05;
+            utt.volume = 0.95;
+            utt.onstart = () => {
+                document.getElementById('tts-status').textContent = '🔊 AI interviewer speaking…';
+            };
+            utt.onend = () => {
+                document.getElementById('tts-status').textContent = '';
+            };
+            window.speechSynthesis.speak(utt);
+        }
+
+        function replayQuestion() {
+            if (currentQuestion) speakText(currentQuestion.question || currentQuestion);
+        }
+
+        function toggleMute() {
+            isTTSMuted = !isTTSMuted;
+            const btn = document.getElementById('mute-btn');
+            btn.textContent = isTTSMuted ? '🔔 Unmute' : '🔇 Mute';
+            if (isTTSMuted) window.speechSynthesis.cancel();
+            logEvent(`AI voice ${isTTSMuted ? 'muted' : 'unmuted'}`, 'info');
+        }
+
+        // ── Monitoring ─────────────────────────────────
+
+        // ── Monitoring ─────────────────────────────────
+        function initMonitoring() {
+            // Layer 1: Browser activity
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden) {
+                    logEvent("Tab switched / app minimized", "danger");
+                    addViolation();
+                    reportEvent("tab_switch", { hidden: true });
+                } else {
+                    logEvent("Returned to interview tab", "warn");
+                    reportEvent("tab_return", {});
+                }
+            });
+
+            window.addEventListener("blur", () => { logEvent("Window focus lost", "warn"); addViolation(); reportEvent("window_blur", {}); });
+            window.addEventListener("focus", () => { reportEvent("window_focus", {}); });
+
+            document.addEventListener("copy", () => { logEvent("Text copied (Ctrl+C)", "warn"); reportEvent("copy", {}); });
+            document.addEventListener("paste", () => { logEvent("Paste detected", "danger"); addViolation(); reportEvent("paste", {}); });
+            document.addEventListener("contextmenu", (e) => { e.preventDefault(); logEvent("Right-click blocked", "info"); });
+            document.addEventListener("keydown", (e) => {
+                if ((e.ctrlKey || e.metaKey) && ["c", "v", "a"].includes(e.key.toLowerCase())) {
+                    if (e.key.toLowerCase() === "v") { logEvent("Ctrl+V paste blocked", "danger"); addViolation(); }
+                    else if (e.key.toLowerCase() === "c") { logEvent("Copy detected", "warn"); }
+                }
+            });
+        }
+
+        function logEvent(msg, type) {
+            const log = document.getElementById("event-log");
+            const time = new Date().toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
+            log.insertAdjacentHTML("beforeend",
+                `<div class="event-item">
+        <div class="event-dot ${type}"></div>
+        <div class="event-text">${msg}</div>
+        <div class="event-time">${time}</div>
+      </div>`);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function addViolation() {
+            violations++;
+            const el = document.getElementById("violation-count");
+            el.textContent = violations;
+            el.className = "violation-count " + (violations >= 5 ? "danger" : violations >= 2 ? "warn" : "ok");
+            const integrity = Math.max(0, 100 - violations * 10);
+            const iEl = document.getElementById("integrity-score");
+            iEl.textContent = integrity + "%";
+            iEl.style.color = integrity >= 80 ? "var(--accent-success)" : integrity >= 60 ? "var(--accent-warning)" : "var(--accent-danger)";
+        }
+
+        function reportEvent(type, details) {
+            fetch("/api/monitor/event", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: SESSION_ID, event_type: type, details })
+            }).catch(() => { });
+        }
+
+        // ══════════════════════════════════════════════════════════
+        // STT — OpenAI Whisper via backend (high quality, open source)
+        // Records raw PCM WAV with AudioContext (no browser STT API)
+        // ══════════════════════════════════════════════════════════
+        let isRecording = false;
+        let sttFinalText = '';
+        let sttAudioCtx = null;
+        let sttStream = null;
+        let sttProcessor = null;
+        let sttPcmBuffer = [];       // Float32 samples collected
+        let sttSegmentTimer = null;  // fires every 15s to transcribe chunk
+
+        function toggleRecording() {
+            isRecording ? stopRecording() : startRecording();
+        }
+
+        async function startRecording() {
+            if (isRecording) return;
+
+            // Stop TTS so mic doesn't pick up AI voice
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            document.getElementById('tts-status').textContent = '';
+
+            try {
+                sttStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+            } catch (err) {
+                const msg = err.name === 'NotAllowedError'
+                    ? '🚫 Mic denied — click 🔒 in address bar and allow microphone'
+                    : '🎙️ Cannot access mic: ' + err.message;
+                showToast(msg, 'warn');
+                document.getElementById('voice-status').textContent = msg;
+                return;
+            }
+
+            // AudioContext: capture raw PCM at 16 kHz
+            sttAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            const source = sttAudioCtx.createMediaStreamSource(sttStream);
+
+            // ScriptProcessor collects PCM samples
+            sttProcessor = sttAudioCtx.createScriptProcessor(4096, 1, 1);
+            sttProcessor.onaudioprocess = (e) => {
+                if (!isRecording) return;
+                const data = e.inputBuffer.getChannelData(0); // Float32
+                sttPcmBuffer.push(new Float32Array(data));
+            };
+            source.connect(sttProcessor);
+            sttProcessor.connect(sttAudioCtx.destination);
+
+            isRecording = true;
+            sttPcmBuffer = [];
+
+            // Update UI
+            document.getElementById('voice-viz').classList.add('recording');
+            document.getElementById('voice-icon').textContent = '🔴';
+            document.getElementById('voice-status').textContent = '🎙️ Recording… speak clearly (Whisper AI)';
+            document.getElementById('voice-record-btn').textContent = '⏹ Stop Recording';
+            document.getElementById('voice-record-btn').style.background = 'var(--accent-danger)';
+            renderTranscript(sttFinalText, '');
+            logEvent('Whisper STT recording started', 'ok');
+
+            // Send chunk every 15 seconds for incremental transcription
+            sttSegmentTimer = setInterval(async () => {
+                if (!isRecording || sttPcmBuffer.length === 0) return;
+                const chunk = [...sttPcmBuffer];
+                sttPcmBuffer = [];     // reset buffer for next segment
+                document.getElementById('voice-status').textContent = '⏳ Transcribing…';
+                const text = await transcribeChunk(chunk, sttAudioCtx.sampleRate);
+                if (text) {
+                    sttFinalText += (sttFinalText ? ' ' : '') + text;
+                    renderTranscript(sttFinalText, '');
+                }
+                if (isRecording)
+                    document.getElementById('voice-status').textContent = '🎙️ Recording… (Whisper AI)';
+            }, 15000);
+        }
+
+        async function stopRecording() {
+            if (!isRecording) return;
+            isRecording = false;
+            clearInterval(sttSegmentTimer);
+
+            // Disconnect audio graph
+            if (sttProcessor) { sttProcessor.disconnect(); sttProcessor = null; }
+            if (sttAudioCtx) { sttAudioCtx.close(); sttAudioCtx = null; }
+            if (sttStream) { sttStream.getTracks().forEach(t => t.stop()); sttStream = null; }
+
+            // Transcribe remaining buffer
+            if (sttPcmBuffer.length > 0) {
+                document.getElementById('voice-status').textContent = '⏳ Finalising transcript…';
+                document.getElementById('voice-icon').textContent = '⏳';
+                const text = await transcribeChunk(sttPcmBuffer, 16000);
+                sttPcmBuffer = [];
+                if (text) {
+                    sttFinalText += (sttFinalText ? ' ' : '') + text;
+                    renderTranscript(sttFinalText, '');
+                }
+            }
+
+            document.getElementById('voice-viz').classList.remove('recording');
+            document.getElementById('voice-icon').textContent = '🎤';
+            document.getElementById('voice-status').textContent =
+                sttFinalText.trim() ? '✅ Done — review & click Submit Answer' : '⚠️ Nothing captured. Try again.';
+            document.getElementById('voice-record-btn').textContent = '🔴 Start Recording';
+            document.getElementById('voice-record-btn').style.background = '';
+        }
+
+        // Merge Float32 chunks → PCM WAV blob → send to Whisper
+        async function transcribeChunk(chunks, sampleRate) {
+            const merged = mergeF32(chunks);
+            if (merged.length < sampleRate * 0.5) return ''; // < 0.5s — skip
+
+            const wavBlob = encodeWAV(merged, sampleRate);
+            try {
+                const fd = new FormData();
+                fd.append('audio', wavBlob, 'recording.wav');
+                const res = await fetch('/api/stt/transcribe', { method: 'POST', body: fd });
+                if (!res.ok) throw new Error('Server ' + res.status);
+                const data = await res.json();
+                const text = (data.transcript || '').trim();
+                if (text) console.log('[Whisper]', text);
+                return text;
+            } catch (err) {
+                console.error('[Whisper STT]', err);
+                showToast('⚠️ Transcription error: ' + err.message, 'warn');
+                return '';
+            }
+        }
+
+        // ── PCM helpers ───────────────────────────────────────────
+        function mergeF32(arrays) {
+            const total = arrays.reduce((s, a) => s + a.length, 0);
+            const out = new Float32Array(total);
+            let offset = 0;
+            for (const a of arrays) { out.set(a, offset); offset += a.length; }
+            return out;
+        }
+
+        function encodeWAV(samples, sr) {
+            const buf = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buf);
+            const numCh = 1;
+            const bps = 16;
+            const byteR = (sr * numCh * bps) / 8;
+            const blkA = (numCh * bps) / 8;
+
+            const w = (o, v) => view.setUint32(o, v, true);
+            const ws = (o, v) => view.setUint16(o, v, true);
+            const str = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+
+            str(0, 'RIFF'); w(4, 36 + samples.length * 2); str(8, 'WAVE');
+            str(12, 'fmt '); w(16, 16); ws(20, 1); ws(22, numCh);
+            w(24, sr); w(28, byteR); ws(32, blkA); ws(34, bps);
+            str(36, 'data'); w(40, samples.length * 2);
+
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+            }
+            return new Blob([buf], { type: 'audio/wav' });
+        }
+
+        // ── Render transcript ─────────────────────────────────────
+        function renderTranscript(finalText, interim) {
+            const box = document.getElementById('voice-transcript');
+            box.innerHTML = '';
+            if (finalText) {
+                const s = document.createElement('span');
+                s.textContent = finalText;
+                s.style.color = 'var(--text-primary)';
+                box.appendChild(s);
+            }
+            if (interim) {
+                const s = document.createElement('span');
+                s.textContent = ' ' + interim;
+                s.style.color = 'var(--text-muted)';
+                s.style.fontStyle = 'italic';
+                box.appendChild(s);
+            }
+            if (!finalText && !interim) box.textContent = '🎙️ Listening — speak now…';
+        }
+
+        function clearTranscript() {
+            sttFinalText = '';
+            const box = document.getElementById('voice-transcript');
+            box.innerHTML = '';
+            box.textContent = 'Your speech will appear here…';
+            document.getElementById('voice-status').textContent = 'Click to start recording';
+        }
+
+        function clearCode() {
+            document.getElementById("code-editor").value = "# Write your solution here\ndef solution():\n    pass\n";
+        }
+
+        // ── Toast ──────────────────────────────────────
+        function showToast(msg, type = "info") {
+            const c = document.getElementById("toast-container");
+            const t = document.createElement("div");
+            t.className = `toast ${type}`;
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 4000);
+        }
+
+        // ─────────────────────────────────────────────
+        // INIT: Display first question from session
+        // ─────────────────────────────────────────────
+    </script>
+
+    <!-- Load first question from session data -->
+    <script>
+        // Load first question from session — single authoritative call
+        (async function loadFirstQuestion() {
+            try {
+                const res = await fetch(`/api/interview/state?session_id={{ session_id }}`);
+                const d = await res.json();
+                if (d && d.question) {
+                    displayQuestion(d.question, d.question_num || 1, d.max_questions || 10);
+                } else {
+                    document.getElementById("q-text").textContent =
+                        "Welcome! Your AI interviewer is ready. Type your answer and click Submit Answer.";
+                    document.getElementById("q-topic").textContent = "Introduction";
+                }
+            } catch (e) {
+                document.getElementById("q-text").textContent =
+                    "Welcome! Your AI interviewer is ready. Type your answer and click Submit Answer.";
+                document.getElementById("q-topic").textContent = "Introduction";
+            }
+        })();
+    </script>
+</body>
+
+</html>

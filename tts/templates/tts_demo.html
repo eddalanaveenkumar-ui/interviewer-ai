@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🔊 TTS — High Quality Open Source Text-to-Speech</title>
+    <meta name="description" content="Open-source neural text-to-speech demo using edge-tts, Coqui TTS, and Silero." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/tts.css" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a14;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            color: #e2e8f0;
+        }
+
+        /* ── Animated background orbs ── */
+        body::before,
+        body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::before {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, #7c3aed, transparent 70%);
+            top: -100px;
+            left: -100px;
+            animation: floatOrb 10s ease-in-out infinite alternate;
+        }
+
+        body::after {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #06b6d4, transparent 70%);
+            bottom: -80px;
+            right: -80px;
+            animation: floatOrb 14s ease-in-out infinite alternate-reverse;
+        }
+
+        @keyframes floatOrb {
+            from {
+                transform: translate(0, 0) scale(1);
+            }
+
+            to {
+                transform: translate(40px, 40px) scale(1.1);
+            }
+        }
+
+        /* ── Page wrapper ── */
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        /* ── Hero Header ── */
+        .hero {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(124, 58, 237, 0.15);
+            border: 1px solid rgba(124, 58, 237, 0.4);
+            border-radius: 999px;
+            padding: 0.3rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #a78bfa;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #e2e8f0 0%, #7c3aed 50%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+            margin-bottom: 0.75rem;
+        }
+
+        .hero p {
+            color: #64748b;
+            font-size: 1rem;
+            max-width: 480px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* ── Main TTS Card ── */
+        .tts-widget {
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* ── Section label ── */
+        .tts-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+
+        /* ── Input group ── */
+        .input-group {
+            margin-bottom: 1.25rem;
+        }
+
+        /* ── Char counter ── */
+        .char-counter {
+            text-align: right;
+            font-size: 0.75rem;
+            color: #475569;
+            margin-top: 0.3rem;
+            transition: color 0.2s;
+        }
+
+        .char-counter.warn {
+            color: #f59e0b;
+        }
+
+        .char-counter.over {
+            color: #ef4444;
+        }
+
+        /* ── Engine pills ── */
+        .engine-pills {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+        }
+
+        .engine-pill {
+            padding: 0.45rem 1rem;
+            border-radius: 999px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            background: rgba(124, 58, 237, 0.08);
+            color: #94a3b8;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .engine-pill:hover {
+            border-color: #7c3aed;
+            color: #c4b5fd;
+        }
+
+        .engine-pill.active {
+            background: rgba(124, 58, 237, 0.25);
+            border-color: #7c3aed;
+            color: #a78bfa;
+            box-shadow: 0 0 12px rgba(124, 58, 237, 0.3);
+        }
+
+        /* ── Speed slider ── */
+        .speed-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #tts-speed-input {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%);
+            outline: none;
+            cursor: pointer;
+        }
+
+        #tts-speed-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #7c3aed;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+            transition: transform 0.15s;
+        }
+
+        #tts-speed-input::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .speed-val {
+            min-width: 40px;
+            text-align: center;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #a78bfa;
+            background: rgba(124, 58, 237, 0.1);
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+        }
+
+        /* ── Divider ── */
+        .tts-divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            margin: 1.25rem 0;
+        }
+
+        /* ── Recent output ── */
+        .recent-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .recent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .recent-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .recent-item:hover {
+            background: rgba(124, 58, 237, 0.08);
+            border-color: rgba(124, 58, 237, 0.3);
+            color: #c4b5fd;
+        }
+
+        .recent-item-icon {
+            font-size: 1rem;
+        }
+
+        .recent-item-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ── Footer ── */
+        .page-footer {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: #334155;
+        }
+
+        .page-footer a {
+            color: #7c3aed;
+            text-decoration: none;
+        }
+
+        .page-footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="page-wrapper">
+
+        <!-- Hero -->
+        <header class="hero">
+            <div class="hero-badge">⚡ Open Source · Neural Quality</div>
+            <h1>Text to Speech</h1>
+            <p>High-quality, neural speech synthesis powered by <strong>edge-tts</strong>, Coqui, and Silero — all open
+                source.</p>
+        </header>
+
+        <!-- TTS Widget -->
+        <div class="tts-widget">
+            <h2>
+                <div class="tts-wave" id="tts-wave" style="display:none">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                🔊 TTS Studio
+            </h2>
+
+            <!-- Text Input -->
+            <div class="input-group">
+                <div class="tts-label">Your Text</div>
+                <textarea id="tts-text-input" placeholder="Type or paste any text here to convert it to speech..."
+                    maxlength="5000">Hello! I am an open source, high quality text-to-speech engine. I can speak in many languages and voices.</textarea>
+                <div class="char-counter" id="char-counter">178 / 5000</div>
+            </div>
+
+            <!-- Engine Selector -->
+            <div class="tts-label">Engine</div>
+            <div class="engine-pills" id="engine-pills">
+                <div class="engine-pill active" data-engine="edge">⚡ edge-tts (Recommended)</div>
+                <div class="engine-pill" data-engine="silero">🧠 Silero (Offline)</div>
+                <div class="engine-pill" data-engine="coqui">🐸 Coqui TTS (Offline)</div>
+            </div>
+
+            <!-- Voice + Speed -->
+            <div class="tts-controls">
+                <div style="flex:1; min-width:180px;">
+                    <div class="tts-label">Voice</div>
+                    <select id="tts-voice-select" class="tts-select"></select>
+                </div>
+                <div style="flex:1; min-width:140px;">
+                    <div class="tts-label">Speed</div>
+                    <div class="speed-container">
+                        <input type="range" id="tts-speed-input" min="0.5" max="2.0" step="0.1" value="1.0" />
+                        <div class="speed-val" id="speed-display">1.0×</div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="tts-divider" />
+
+            <!-- Buttons -->
+            <div class="tts-btn-row">
+                <button id="tts-speak-btn">▶ Speak</button>
+                <button id="tts-stop-btn">⏹ Stop</button>
+            </div>
+
+            <!-- Status -->
+            <div id="tts-status" class="tts-status tts-status--idle">Ready to speak.</div>
+
+            <hr class="tts-divider" />
+
+            <!-- Quick Samples -->
+            <div class="recent-label">💡 Quick Samples</div>
+            <div class="recent-list">
+                <div class="recent-item sample-text"
+                    data-text="Welcome to the open source text to speech system. Enjoy high quality neural voices.">
+                    <span class="recent-item-icon">🌍</span>
+                    <span class="recent-item-text">Welcome to the open source TTS system…</span>
+                </div>
+                <div class="recent-item sample-text"
+                    data-text="The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet.">
+                    <span class="recent-item-icon">🦊</span>
+                    <span class="recent-item-text">The quick brown fox jumps over the lazy dog…</span>
+                </div>
+                <div class="recent-item sample-text"
+                    data-text="नमस्ते! मैं एक उच्च गुणवत्ता वाला टेक्स्ट टू स्पीच सिस्टम हूँ।">
+                    <span class="recent-item-icon">🇮🇳</span>
+                    <span class="recent-item-text">नमस्ते! Hindi sample text…</span>
+                </div>
+            </div>
+        </div>
+
+        <footer class="page-footer">
+            Powered by <a href="https://github.com/rany2/edge-tts" target="_blank">edge-tts</a> ·
+            <a href="https://github.com/coqui-ai/TTS" target="_blank">Coqui TTS</a> ·
+            <a href="https://github.com/snakers4/silero-models" target="_blank">Silero</a>
+        </footer>
+
+    </div>
+
+    <script src="/static/js/tts.js"></script>
+    <script>
+        // ── Engine pill toggle ──
+        let selectedEngine = "edge";
+        document.getElementById("engine-pills").addEventListener("click", (e) => {
+            const pill = e.target.closest(".engine-pill");
+            if (!pill) return;
+            document.querySelectorAll(".engine-pill").forEach(p => p.classList.remove("active"));
+            pill.classList.add("active");
+            selectedEngine = pill.dataset.engine;
+        });
+
+        // ── Char counter ──
+        const textInput = document.getElementById("tts-text-input");
+        const charCounter = document.getElementById("char-counter");
+        function updateCounter() {
+            const len = textInput.value.length;
+            charCounter.textContent = `${len} / 5000`;
+            charCounter.className = "char-counter" + (len > 4500 ? " over" : len > 4000 ? " warn" : "");
+        }
+        textInput.addEventListener("input", updateCounter);
+        updateCounter();
+
+        // ── Speed display ──
+        const speedInput = document.getElementById("tts-speed-input");
+        const speedDisplay = document.getElementById("speed-display");
+        speedInput.addEventListener("input", () => {
+            speedDisplay.textContent = `${parseFloat(speedInput.value).toFixed(1)}×`;
+        });
+
+        // ── Wave animation on speak ──
+        const wave = document.getElementById("tts-wave");
+        const origOnStart = window.TTS?._onStart;
+        const origOnEnd = window.TTS?._onEnd;
+        const origOnStop = window.TTS?._onStop;
+
+        // Override speak button to pass engine
+        document.getElementById("tts-speak-btn").addEventListener("click", async (e) => {
+            e.stopImmediatePropagation();
+            const text = textInput.value.trim();
+            const voice = document.getElementById("tts-voice-select").value;
+            const speed = parseFloat(speedInput.value);
+            if (!text) return;
+            wave.style.display = "flex";
+            document.getElementById("tts-status").textContent = "⏳ Generating audio...";
+            document.getElementById("tts-status").className = "tts-status tts-status--loading";
+            await window.TTS?.speak(text, voice, speed, selectedEngine);
+        }, true);
+
+        // Hide wave on stop/end
+        document.getElementById("tts-stop-btn").addEventListener("click", () => {
+            wave.style.display = "none";
+            window.TTS?.stop();
+        });
+
+        // ── Sample text click ──
+        document.querySelectorAll(".sample-text").forEach(el => {
+            el.addEventListener("click", () => {
+                textInput.value = el.dataset.text;
+                updateCounter();
+                textInput.focus();
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,42 @@
+# ── Python ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Virtual Environments ─────────────────────────
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# ── Whisper / ML model cache ─────────────────────
+# Whisper downloads models to ~/.cache/whisper — not in project
+# But exclude any local model dirs just in case
+models/
+*.pt
+*.bin
+*.onnx
+*.safetensors
+
+# ── Flask / App data ─────────────────────────────
+interview_platform/data/*.json
+*.log
+instance/
+
+# ── IDE & OS ─────────────────────────────────────
+.idea/
+.vscode/
+*.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Node (if any) ────────────────────────────────
+node_modules/

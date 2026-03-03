@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Interview Platform — Login</title>
+    <meta name="description" content="Secure login to the Intelligent Adaptive AI Interviewing Platform" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/main.css" />
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .login-bg {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse 80% 80% at 20% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 60% at 80% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 60%),
+                var(--bg-base);
+        }
+
+        .login-bg .orb1 {
+            width: 500px;
+            height: 500px;
+            background: rgba(99, 102, 241, 1);
+            top: -150px;
+            left: -100px;
+        }
+
+        .login-bg .orb2 {
+            width: 400px;
+            height: 400px;
+            background: rgba(6, 182, 212, 1);
+            bottom: -100px;
+            right: -80px;
+            animation-delay: -4s;
+        }
+
+        .login-card {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 440px;
+            background: rgba(13, 17, 23, 0.8);
+            backdrop-filter: blur(24px);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 2.5rem;
+            box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            animation: cardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes cardIn {
+            from {
+                transform: translateY(30px) scale(0.95);
+                opacity: 0
+            }
+
+            to {
+                transform: none;
+                opacity: 1
+            }
+        }
+
+        .login-logo {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            box-shadow: var(--glow-primary);
+        }
+
+        .login-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 0.4rem;
+        }
+
+        .login-subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            margin-bottom: 2rem;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-wrap .icon {
+            position: absolute;
+            left: 0.9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .input-wrap .form-input {
+            padding-left: 2.8rem;
+        }
+
+        .input-wrap .toggle-pass {
+            position: absolute;
+            right: 0.9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 0.85rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.6);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .demo-accounts {
+            margin-top: 1.5rem;
+        }
+
+        .demo-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .demo-pills {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .demo-pill {
+            padding: 0.4rem 0.9rem;
+            border-radius: var(--radius-full);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .demo-pill:hover {
+            border-color: var(--accent-primary);
+            color: var(--text-accent);
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .features-strip {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            padding: 1rem;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .features-strip span {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+    </style>
+</head>
+
+<body class="bg-grid">
+    <div class="login-bg">
+        <div class="orb orb1"></div>
+        <div class="orb orb2"></div>
+    </div>
+
+    <div class="login-card">
+        <div class="login-logo">🤖</div>
+        <h1 class="login-title gradient-text">InterviewAI</h1>
+        <p class="login-subtitle">Intelligent Adaptive Interview Platform · Powered by AI</p>
+
+        <form class="login-form" id="loginForm" autocomplete="on">
+            <div id="error-msg" class="error-msg"></div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email Address</label>
+                <div class="input-wrap">
+                    <span class="icon">✉️</span>
+                    <input id="email" class="form-input" type="email" placeholder="you@company.com" autocomplete="email"
+                        required />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <div class="input-wrap">
+                    <span class="icon">🔒</span>
+                    <input id="password" class="form-input" type="password" placeholder="••••••••"
+                        autocomplete="current-password" required />
+                    <button type="button" class="toggle-pass" id="togglePass" aria-label="Show password">👁</button>
+                </div>
+            </div>
+
+            <button type="submit" class="login-btn" id="loginBtn">
+                <span id="btnText">Sign In</span>
+                <div class="spinner hidden" id="btnSpinner"></div>
+            </button>
+        </form>
+
+        <div class="demo-accounts">
+            <div class="demo-label">👆 Quick Demo Login</div>
+            <div class="demo-pills">
+                <div class="demo-pill" data-email="candidate@demo.com" data-pass="demo123">🎓 Candidate</div>
+                <div class="demo-pill" data-email="recruiter@demo.com" data-pass="recruiter123">👔 Recruiter</div>
+                <div class="demo-pill" data-email="admin@demo.com" data-pass="admin123">⚙️ Admin</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="features-strip">
+        <span>🔐 Secure Access</span>
+        <span>🎯 Adaptive AI Questions</span>
+        <span>📊 Structured Reports</span>
+        <span>🛡️ Anti-Cheat Monitoring</span>
+    </div>
+
+    <div id="toast-container"></div>
+    <script>
+        // Toggle password visibility
+        document.getElementById("togglePass").addEventListener("click", () => {
+            const p = document.getElementById("password");
+            p.type = p.type === "password" ? "text" : "password";
+        });
+
+        // Demo pill click — autofill
+        document.querySelectorAll(".demo-pill").forEach(pill => {
+            pill.addEventListener("click", () => {
+                document.getElementById("email").value = pill.dataset.email;
+                document.getElementById("password").value = pill.dataset.pass;
+            });
+        });
+
+        // Login form submit
+        document.getElementById("loginForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById("loginBtn");
+            const spinner = document.getElementById("btnSpinner");
+            const btnText = document.getElementById("btnText");
+            const errEl = document.getElementById("error-msg");
+
+            btnText.textContent = "Signing in…";
+            spinner.classList.remove("hidden");
+            btn.disabled = true;
+            errEl.style.display = "none";
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    btnText.textContent = "✓ Welcome, " + data.name + "!";
+                    setTimeout(() => { window.location.href = "/dashboard"; }, 600);
+                } else {
+                    errEl.textContent = data.error || "Login failed. Please check your credentials.";
+                    errEl.style.display = "block";
+                    btnText.textContent = "Sign In";
+                    spinner.classList.add("hidden");
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                errEl.textContent = "Connection error. Is the server running?";
+                errEl.style.display = "block";
+                btnText.textContent = "Sign In";
+                spinner.classList.add("hidden");
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

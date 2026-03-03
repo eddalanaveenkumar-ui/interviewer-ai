@@ -1,0 +1,181 @@
+/* tts.css — TTS Widget Styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --tts-bg: #0f0f1a;
+    --tts-card: #1a1a2e;
+    --tts-accent: #7c3aed;
+    --tts-accent-2: #06b6d4;
+    --tts-text: #e2e8f0;
+    --tts-muted: #64748b;
+    --tts-border: rgba(124, 58, 237, 0.3);
+    --tts-success: #10b981;
+    --tts-error: #ef4444;
+    --tts-radius: 16px;
+    --tts-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── Widget Container ─── */
+.tts-widget {
+    font-family: 'Inter', sans-serif;
+    background: var(--tts-card);
+    border: 1px solid var(--tts-border);
+    border-radius: var(--tts-radius);
+    padding: 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+    box-shadow: var(--tts-shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+.tts-widget::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--tts-accent), var(--tts-accent-2));
+}
+
+/* ─── Title ─── */
+.tts-widget h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--tts-text);
+    margin: 0 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ─── Textarea ─── */
+#tts-text-input {
+    width: 100%;
+    min-height: 120px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--tts-border);
+    border-radius: 10px;
+    color: var(--tts-text);
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 1rem;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+#tts-text-input:focus {
+    outline: none;
+    border-color: var(--tts-accent);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+#tts-text-input::placeholder { color: var(--tts-muted); }
+
+/* ─── Controls Row ─── */
+.tts-controls {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+}
+
+.tts-select, .tts-speed {
+    flex: 1;
+    min-width: 140px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--tts-border);
+    border-radius: 8px;
+    color: var(--tts-text);
+    font-family: inherit;
+    font-size: 0.88rem;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.tts-select:focus, .tts-speed:focus {
+    outline: none;
+    border-color: var(--tts-accent);
+}
+
+.tts-select option { background: #1a1a2e; }
+
+/* ─── Buttons ─── */
+.tts-btn-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+#tts-speak-btn {
+    flex: 1;
+    padding: 0.85rem 1.5rem;
+    background: linear-gradient(135deg, var(--tts-accent), var(--tts-accent-2));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+}
+
+#tts-speak-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5); }
+#tts-speak-btn:active { transform: translateY(0); opacity: 0.85; }
+
+#tts-stop-btn {
+    padding: 0.85rem 1.2rem;
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--tts-error);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#tts-stop-btn:hover { background: rgba(239, 68, 68, 0.25); }
+
+/* ─── Status ─── */
+.tts-status {
+    margin-top: 1rem;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    min-height: 2.2rem;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s;
+}
+
+.tts-status--idle    { background: rgba(100, 116, 139, 0.1); color: var(--tts-muted); }
+.tts-status--loading { background: rgba(6, 182, 212, 0.1); color: var(--tts-accent-2); }
+.tts-status--playing { background: rgba(16, 185, 129, 0.1); color: var(--tts-success); }
+.tts-status--done    { background: rgba(16, 185, 129, 0.1); color: var(--tts-success); }
+.tts-status--error   { background: rgba(239, 68, 68, 0.1); color: var(--tts-error); }
+
+/* ─── Animated sound wave icon ─── */
+.tts-wave {
+    display: flex; gap: 3px; align-items: center; height: 20px;
+}
+.tts-wave span {
+    display: block; width: 3px; border-radius: 3px;
+    background: linear-gradient(var(--tts-accent), var(--tts-accent-2));
+    animation: wave 1.2s ease-in-out infinite;
+}
+.tts-wave span:nth-child(1) { height: 8px;  animation-delay: 0s; }
+.tts-wave span:nth-child(2) { height: 16px; animation-delay: 0.1s; }
+.tts-wave span:nth-child(3) { height: 12px; animation-delay: 0.2s; }
+.tts-wave span:nth-child(4) { height: 20px; animation-delay: 0.3s; }
+.tts-wave span:nth-child(5) { height: 10px; animation-delay: 0.4s; }
+
+@keyframes wave {
+    0%, 100% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1); }
+}

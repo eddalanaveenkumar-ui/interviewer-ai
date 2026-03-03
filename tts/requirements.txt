@@ -1,0 +1,8 @@
+# Core TTS dependencies
+edge-tts>=6.1.9          # Microsoft Edge neural voices (free, high-quality, online)
+coqui-tts>=0.22.0        # Coqui TTS (offline, neural, VITS)
+pydub>=0.25.1            # Audio processing / format conversion
+Flask>=3.0.0             # API server
+flask-cors>=4.0.0        # Cross-Origin Resource Sharing
+aiofiles>=23.2.1         # Async file handling
+asyncio                  # Async support (stdlib)
