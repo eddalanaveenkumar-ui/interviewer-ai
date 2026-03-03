@@ -14,8 +14,8 @@ LLM_MODEL = "arcee-ai/trinity-large-preview:free"
 
 # ── Flask ────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("SECRET_KEY", "interview_platform_secret_2026")
-DEBUG = True
-PORT = 5055
+DEBUG      = os.getenv("FLASK_ENV", "development") == "development"
+PORT       = int(os.getenv("PORT", 5055))   # HF Spaces injects PORT=7860
 
 # ── Interview Settings ────────────────────────────────────────
 MAX_QUESTIONS = 10          # max questions per session
