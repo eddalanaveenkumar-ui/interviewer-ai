@@ -28,6 +28,20 @@
             flex-direction: column;
         }
 
+        /* Block Chrome's fullscreen exit notification at top center */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 50px;
+            z-index: 999999;
+            pointer-events: auto;
+            background: transparent;
+        }
+
         /* ── Top Bar ── */
         .iv-topbar {
             display: flex;
@@ -371,9 +385,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 1.5rem;
             padding: 2rem;
+            overflow-y: auto;
         }
 
         .voice-viz {
@@ -430,6 +445,8 @@
             font-size: 0.9rem;
             color: var(--text-secondary);
             min-height: 80px;
+            max-height: 150px;
+            overflow-y: auto;
             line-height: 1.6;
         }
 
@@ -777,6 +794,24 @@
         </div>
     </div>
 
+    <!-- Fullscreen Warning Banner -->
+    <div id="fs-warning" style="
+        background: linear-gradient(90deg, #dc2626, #b91c1c);
+        color: #fff;
+        text-align: center;
+        padding: 6px 1rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    ">
+        ⚠️ Do NOT press Escape or exit fullscreen — your interview session will be automatically ended!
+    </div>
+
     <!-- Main Layout -->
     <div class="iv-layout">
 
@@ -1052,6 +1087,9 @@ def solution():
             loadFirstQuestion();
             // Word counter
             document.getElementById("text-answer").addEventListener("input", updateWordCount);
+
+            // Enter fullscreen mode for the interview
+            enterFullscreen();
         });
 
         function updateWordCount() {
@@ -1207,13 +1245,39 @@ def solution():
                 document.getElementById("thinking-overlay").classList.remove("show");
 
                 if (data.interview_complete) {
-                    // Generate report
+                    // Check if auto-quit due to poor performance
+                    if (data.auto_quit && data.quit_reason === 'poor_performance') {
+                        interviewEnding = true;
+                        exitFullscreen();
+                        document.getElementById("thinking-overlay").classList.add("show");
+                        document.getElementById("thinking-sub").textContent =
+                            "⚠️ Interview terminated — your answers were consistently irrelevant or off-topic. Generating report…";
+                        logEvent("Interview auto-ended: poor performance", "danger");
+                        setTimeout(() => {
+                            window.location.href = `/report/${SESSION_ID}`;
+                        }, 3000);
+                        return;
+                    }
+
+                    // Normal completion — generate report
+                    interviewEnding = true;
+                    exitFullscreen();
                     document.getElementById("thinking-overlay").classList.add("show");
                     document.getElementById("thinking-sub").textContent = "Generating your comprehensive assessment report…";
                     setTimeout(() => {
                         window.location.href = `/report/${SESSION_ID}`;
                     }, 2000);
                     return;
+                }
+
+                // Show warning if 2 consecutive poor answers
+                if (data.poor_answer_warning) {
+                    showToast(
+                        `⚠️ Warning: ${data.consecutive_poor} consecutive poor answers! ` +
+                        `One more irrelevant answer will end the interview.`,
+                        "warn"
+                    );
+                    logEvent(`Poor answer warning (${data.consecutive_poor} in a row)`, "warn");
                 }
 
                 // Show evaluation feedback
@@ -1282,6 +1346,8 @@ def solution():
         }
 
         // ── End Interview ──────────────────────────────
+        let interviewEnding = false; // flag to allow fullscreen exit only on End
+
         function confirmEnd() {
             if (answeredCount === 0) {
                 showToast("⚠️ Answer at least 1 question before ending.", "warn");
@@ -1292,6 +1358,9 @@ def solution():
         }
 
         async function endInterview() {
+            interviewEnding = true; // allow fullscreen exit
+            exitFullscreen();
+
             document.getElementById("thinking-overlay").classList.add("show");
             document.getElementById("thinking-sub").textContent = "Generating your comprehensive assessment report…";
             try {
@@ -1303,6 +1372,42 @@ def solution():
             } catch (e) { }
             setTimeout(() => { window.location.href = `/report/${SESSION_ID}`; }, 1500);
         }
+
+        // ── Fullscreen helpers ─────────────────────────────
+        function enterFullscreen() {
+            const el = document.documentElement;
+            const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+            if (req) {
+                req.call(el).catch(err => {
+                    console.log('[Fullscreen] Could not enter:', err.message);
+                    showToast('⚠️ Click anywhere to enter fullscreen mode', 'warn');
+                    document.body.addEventListener('click', function fsClick() {
+                        enterFullscreen();
+                        document.body.removeEventListener('click', fsClick);
+                    }, { once: true });
+                });
+            }
+        }
+
+        function exitFullscreen() {
+            const exitFn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+            if (exitFn && document.fullscreenElement) {
+                exitFn.call(document).catch(() => { });
+            }
+        }
+
+        // Lock fullscreen — END SESSION if user exits fullscreen
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && !interviewEnding) {
+                // User exited fullscreen — end the interview immediately
+                logEvent("Exited fullscreen — session ended", "danger");
+                addViolation();
+                showToast('🚫 You exited fullscreen! Interview session is ending…', 'warn');
+                setTimeout(() => {
+                    endInterview();
+                }, 1000);
+            }
+        });
 
         // ── Timer ──────────────────────────────────────
         function startTimer() {
@@ -1757,16 +1862,15 @@ def solution():
         }
 
         // ══════════════════════════════════════════════════════════
-        // STT — OpenAI Whisper via backend (high quality, open source)
-        // Records raw PCM WAV with AudioContext (no browser STT API)
+        // STT — MediaRecorder → ElevenLabs STT Server (port 5056)
         // ══════════════════════════════════════════════════════════
+        const STT_SERVER = 'http://localhost:5056';
         let isRecording = false;
         let sttFinalText = '';
-        let sttAudioCtx = null;
         let sttStream = null;
-        let sttProcessor = null;
-        let sttPcmBuffer = [];       // Float32 samples collected
-        let sttSegmentTimer = null;  // fires every 15s to transcribe chunk
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingTimer = null;
 
         function toggleRecording() {
             isRecording ? stopRecording() : startRecording();
@@ -1778,17 +1882,23 @@ def solution():
             // Stop TTS so mic doesn't pick up AI voice
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             document.getElementById('tts-status').textContent = '';
+            sttFinalText = '';
+            renderTranscript('', '');
 
             try {
-                sttStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        sampleRate: 16000,
-                        channelCount: 1,
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
+                // Use preferred mic if set (from mic test page at :5056/mic-test)
+                const preferredMic = localStorage.getItem('preferredMicDeviceId');
+                const audioConstraints = {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    channelCount: 1
+                };
+                if (preferredMic) {
+                    audioConstraints.deviceId = { exact: preferredMic };
+                    console.log('[STT] Using preferred mic:', preferredMic);
+                }
+                sttStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
             } catch (err) {
                 const msg = err.name === 'NotAllowedError'
                     ? '🚫 Mic denied — click 🔒 in address bar and allow microphone'
@@ -1798,97 +1908,96 @@ def solution():
                 return;
             }
 
-            // AudioContext: capture raw PCM at 16 kHz
-            sttAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-            const source = sttAudioCtx.createMediaStreamSource(sttStream);
+            // Pick best supported MIME
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/webm')
+                    ? 'audio/webm'
+                    : 'audio/ogg';
 
-            // ScriptProcessor collects PCM samples
-            sttProcessor = sttAudioCtx.createScriptProcessor(4096, 1, 1);
-            sttProcessor.onaudioprocess = (e) => {
-                if (!isRecording) return;
-                const data = e.inputBuffer.getChannelData(0); // Float32
-                sttPcmBuffer.push(new Float32Array(data));
+            audioChunks = [];
+            mediaRecorder = new MediaRecorder(sttStream, { mimeType });
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) audioChunks.push(e.data);
             };
-            source.connect(sttProcessor);
-            sttProcessor.connect(sttAudioCtx.destination);
 
+            mediaRecorder.start(250);
             isRecording = true;
-            sttPcmBuffer = [];
 
-            // Update UI
+            // UI
             document.getElementById('voice-viz').classList.add('recording');
             document.getElementById('voice-icon').textContent = '🔴';
-            document.getElementById('voice-status').textContent = '🎙️ Recording… speak clearly (Whisper AI)';
             document.getElementById('voice-record-btn').textContent = '⏹ Stop Recording';
             document.getElementById('voice-record-btn').style.background = 'var(--accent-danger)';
-            renderTranscript(sttFinalText, '');
-            logEvent('Whisper STT recording started', 'ok');
+            logEvent('ElevenLabs STT recording started', 'ok');
 
-            // Send chunk every 15 seconds for incremental transcription
-            sttSegmentTimer = setInterval(async () => {
-                if (!isRecording || sttPcmBuffer.length === 0) return;
-                const chunk = [...sttPcmBuffer];
-                sttPcmBuffer = [];     // reset buffer for next segment
-                document.getElementById('voice-status').textContent = '⏳ Transcribing…';
-                const text = await transcribeChunk(chunk, sttAudioCtx.sampleRate);
-                if (text) {
-                    sttFinalText += (sttFinalText ? ' ' : '') + text;
-                    renderTranscript(sttFinalText, '');
-                }
-                if (isRecording)
-                    document.getElementById('voice-status').textContent = '🎙️ Recording… (Whisper AI)';
-            }, 15000);
+            // Live timer
+            let secs = 0;
+            recordingTimer = setInterval(() => {
+                secs++;
+                document.getElementById('voice-status').textContent =
+                    `🔴 Recording… ${secs}s — stop when done speaking`;
+            }, 1000);
         }
 
         async function stopRecording() {
             if (!isRecording) return;
             isRecording = false;
-            clearInterval(sttSegmentTimer);
+            clearInterval(recordingTimer);
 
-            // Disconnect audio graph
-            if (sttProcessor) { sttProcessor.disconnect(); sttProcessor = null; }
-            if (sttAudioCtx) { sttAudioCtx.close(); sttAudioCtx = null; }
+            document.getElementById('voice-status').textContent = '⏳ Transcribing with ElevenLabs…';
+            document.getElementById('voice-icon').textContent = '⏳';
+
+            // Wait for MediaRecorder to flush all data
+            await new Promise(resolve => {
+                mediaRecorder.onstop = resolve;
+                if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+                else resolve();
+            });
+
+            // Stop mic
             if (sttStream) { sttStream.getTracks().forEach(t => t.stop()); sttStream = null; }
 
-            // Transcribe remaining buffer
-            if (sttPcmBuffer.length > 0) {
-                document.getElementById('voice-status').textContent = '⏳ Finalising transcript…';
-                document.getElementById('voice-icon').textContent = '⏳';
-                const text = await transcribeChunk(sttPcmBuffer, 16000);
-                sttPcmBuffer = [];
-                if (text) {
-                    sttFinalText += (sttFinalText ? ' ' : '') + text;
-                    renderTranscript(sttFinalText, '');
+            if (audioChunks.length > 0) {
+                const mime = mediaRecorder.mimeType || 'audio/webm';
+                const ext = mime.includes('ogg') ? '.ogg' : '.webm';
+                const blob = new Blob(audioChunks, { type: mime });
+                audioChunks = [];
+
+                console.log('[STT] Sending', blob.size, 'bytes to STT server');
+
+                try {
+                    const fd = new FormData();
+                    fd.append('audio', blob, 'recording' + ext);
+                    fd.append('session_id', SESSION_ID);
+
+                    // Send to dedicated STT server on port 5056
+                    const res = await fetch(STT_SERVER + '/api/stt/transcribe', {
+                        method: 'POST',
+                        body: fd
+                    });
+
+                    const data = await res.json();
+                    sttFinalText = (data.transcript || '').trim();
+                    console.log('[STT] Result:', sttFinalText);
+                } catch (err) {
+                    console.error('[STT] Error:', err);
+                    showToast('⚠️ STT Server error: ' + err.message, 'warn');
                 }
             }
 
+            // Update UI
             document.getElementById('voice-viz').classList.remove('recording');
             document.getElementById('voice-icon').textContent = '🎤';
-            document.getElementById('voice-status').textContent =
-                sttFinalText.trim() ? '✅ Done — review & click Submit Answer' : '⚠️ Nothing captured. Try again.';
             document.getElementById('voice-record-btn').textContent = '🔴 Start Recording';
             document.getElementById('voice-record-btn').style.background = '';
-        }
 
-        // Merge Float32 chunks → PCM WAV blob → send to Whisper
-        async function transcribeChunk(chunks, sampleRate) {
-            const merged = mergeF32(chunks);
-            if (merged.length < sampleRate * 0.5) return ''; // < 0.5s — skip
-
-            const wavBlob = encodeWAV(merged, sampleRate);
-            try {
-                const fd = new FormData();
-                fd.append('audio', wavBlob, 'recording.wav');
-                const res = await fetch('/api/stt/transcribe', { method: 'POST', body: fd });
-                if (!res.ok) throw new Error('Server ' + res.status);
-                const data = await res.json();
-                const text = (data.transcript || '').trim();
-                if (text) console.log('[Whisper]', text);
-                return text;
-            } catch (err) {
-                console.error('[Whisper STT]', err);
-                showToast('⚠️ Transcription error: ' + err.message, 'warn');
-                return '';
+            if (sttFinalText) {
+                renderTranscript(sttFinalText, '');
+                document.getElementById('voice-status').textContent = '✅ Done — review & click Submit Answer';
+            } else {
+                document.getElementById('voice-status').textContent = '⚠️ Nothing captured. Try again.';
             }
         }
 

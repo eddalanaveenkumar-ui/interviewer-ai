@@ -488,39 +488,20 @@
 
                 <!-- Start New Session -->
                 <section id="start-section">
-                    <h2>🚀 Start New Interview</h2>
+                    <h2>🚀 Start Interview Phase</h2>
                     <div class="session-cards">
-                        <div class="session-card" data-type="technical" onclick="selectSession(this)">
-                            <div class="session-icon">💻</div>
-                            <div class="session-name">Technical</div>
-                            <div class="session-desc">Coding challenges, algorithms, system design, and CS fundamentals.
-                            </div>
+                        {% for key, phase in phases.items() %}
+                        <div class="session-card" data-type="{{ phase.session_type }}" onclick="selectSession(this)">
+                            <div class="session-icon">{{ phase.icon }}</div>
+                            <div class="session-name">{{ phase.name }}</div>
+                            <div class="session-desc">{{ phase.description }}</div>
                             <div class="session-tags">
-                                <span class="badge badge-primary">Coding</span>
-                                <span class="badge badge-cyan">DS&A</span>
-                                <span class="badge badge-primary">System Design</span>
+                                {% for tag in phase.tags %}
+                                <span class="badge badge-{{ phase.color }}">{{ tag }}</span>
+                                {% endfor %}
                             </div>
                         </div>
-                        <div class="session-card" data-type="behavioral" onclick="selectSession(this)">
-                            <div class="session-icon">🧠</div>
-                            <div class="session-name">Behavioral</div>
-                            <div class="session-desc">STAR-method questions on teamwork, leadership, and communication.
-                            </div>
-                            <div class="session-tags">
-                                <span class="badge badge-success">Soft Skills</span>
-                                <span class="badge badge-warning">STAR</span>
-                            </div>
-                        </div>
-                        <div class="session-card" data-type="mock" onclick="selectSession(this)">
-                            <div class="session-icon">🎭</div>
-                            <div class="session-name">Mock Interview</div>
-                            <div class="session-desc">Practice run — no pressure, full feedback. Perfect for
-                                preparation.</div>
-                            <div class="session-tags">
-                                <span class="badge badge-primary">Practice</span>
-                                <span class="badge badge-cyan">No Pressure</span>
-                            </div>
-                        </div>
+                        {% endfor %}
                     </div>
 
                     <div class="start-form mt-4">
@@ -535,7 +516,7 @@
                             </button>
                         </div>
                         <div id="session-info" style="font-size:0.82rem;color:var(--text-muted)">
-                            ← Select a session type to continue
+                            ← Select a phase to continue
                         </div>
                     </div>
                 </section>
@@ -605,9 +586,9 @@
             el.classList.add("selected");
             selectedType = el.dataset.type;
             document.getElementById("start-btn").disabled = false;
-            const labels = { technical: "💻 Technical Interview", behavioral: "🧠 Behavioral Interview", mock: "🎭 Mock Session" };
+            const labels = { communication: "🗣️ Communication Test", aptitude: "🧠 Aptitude Test", coding: "💻 Coding Round", technical: "💻 Technical Interview", behavioral: "🧠 Behavioral Interview", mock: "🎭 Mock Session" };
             document.getElementById("session-info").textContent =
-                `Selected: ${labels[selectedType]} · AI-adaptive questioning · Up to 10 questions`;
+                `Selected: ${labels[selectedType] || selectedType} · AI-adaptive questioning · Up to 10 questions`;
         }
 
         async function startInterview() {

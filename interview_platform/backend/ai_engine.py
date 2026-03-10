@@ -59,11 +59,37 @@ def _safe_json(text: str) -> dict:
 # ─────────────────────────────────────────────────────────────
 def generate_opening_question(session_type: str, candidate_name: str, role: str = "Software Engineer") -> dict:
     """Generate the opening interview question based on session type."""
+
+    # Phase-specific instructions
+    phase_instructions = {
+        "communication": """This is a COMMUNICATION assessment (Phase 1).
+Focus on English communication skills, articulation, clarity of thought, professional expression.
+Ask questions that require the candidate to explain, describe, articulate, or discuss.
+Topics: self-introduction, explaining concepts to non-technical people, describing work experiences, presenting ideas.
+DO NOT ask coding or algorithm questions. Focus purely on communication ability.""",
+
+        "aptitude": """This is a pure APTITUDE test (Phase 2).
+Focus on logical reasoning, quantitative analysis, problem-solving, pattern recognition, and critical thinking.
+Ask questions involving: number series, logical puzzles, probability, percentages, ratios, deductive reasoning.
+DO NOT ask coding questions. These are pen-and-paper style aptitude problems.""",
+
+        "coding": """This is an ADVANCED CODING round (Phase 3).
+Focus on data structures, algorithms, system design, and complex programming problems.
+Difficulty: MODERATE to TOUGH (advanced level).
+Ask questions about: dynamic programming, graph algorithms, tree traversals, system design, time complexity optimization.
+Questions should require actual code implementation or detailed algorithmic thinking.""",
+
+        "technical": "For Technical: start with a foundational concept question.",
+        "behavioral": "For Behavioral: start with a broad situational STAR-method question.",
+        "mock": "For Mock: start with an introduction question."
+    }
+
+    instruction = phase_instructions.get(session_type, phase_instructions.get("technical", ""))
+
     system_prompt = f"""You are an expert AI interviewer conducting a {session_type} interview for a {role} position.
 Your job is to ask one opening question that is warm, professional, and appropriate for the session type.
-For Technical: start with a foundational concept.
-For Behavioral: start with a broad situational question.
-For Mock: start with an introduction question.
+
+{instruction}
 
 Respond ONLY in this JSON format:
 {{
@@ -85,7 +111,7 @@ Respond ONLY in this JSON format:
 
     if not parsed or "question" not in parsed:
         # Fallback
-        fallback = FALLBACK_QUESTIONS.get(session_type, FALLBACK_QUESTIONS["mock"])[0]
+        fallback = FALLBACK_QUESTIONS.get(session_type, FALLBACK_QUESTIONS.get("mock", FALLBACK_QUESTIONS["technical"]))[0]
         return {
             "question": fallback["q"],
             "topic": fallback["topic"],
@@ -129,8 +155,17 @@ def evaluate_and_adapt(
             "\nChoose a topic that has NOT been covered yet."
         )
 
+    # Phase-specific evaluation context
+    phase_context = {
+        "communication": "This is a COMMUNICATION round. Questions must test English fluency, articulation, clarity. NO coding questions.",
+        "aptitude": "This is an APTITUDE round. Questions must test logical reasoning, math, patterns, critical thinking. NO coding questions.",
+        "coding": "This is an ADVANCED CODING round. Questions must be moderate-to-tough: DS&A, system design, DP, graphs. Require code.",
+    }
+    phase_note = phase_context.get(session_type, "")
+
     system_prompt = f"""You are an expert AI interviewer and evaluator for a {role} {session_type} interview.
 You have asked a question and received a candidate answer.
+{phase_note}
 
 Your tasks:
 1. EVALUATE the answer objectively (score 0-100 across dimensions)

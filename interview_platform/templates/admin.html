@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Panel — InterviewAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/main.css" />
+    <style>
+        body {
+            background: var(--bg-base);
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 260px;
+            flex-shrink: 0;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 1rem;
+            gap: 0.5rem;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+
+        .sidebar-brand .logo {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #ef4444, #f59e0b);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.9rem;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(239, 68, 68, 0.12);
+            color: #ef4444;
+        }
+
+        .nav-icon {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-section {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 0.5rem 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+        }
+
+        .user-card-side {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ef4444, #f59e0b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .user-info-side .name {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .user-info-side .role {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: capitalize;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(8, 11, 20, 0.5);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .content {
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #ef4444, #f59e0b);
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0.3rem 0;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Create user form */
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .form-card h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .form-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            font-family: inherit;
+            font-size: 0.88rem;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .form-select {
+            font-family: inherit;
+            font-size: 0.88rem;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .btn-form {
+            font-family: inherit;
+            font-size: 0.92rem;
+            font-weight: 700;
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .btn-create {
+            background: linear-gradient(135deg, #6366f1, #06b6d4);
+            color: #fff;
+        }
+
+        .btn-create:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        /* User table */
+        .user-table {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .ut-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ut-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .ut-row {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 100px 80px;
+            align-items: center;
+            padding: 0.85rem 1.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            gap: 1rem;
+            transition: background 0.2s;
+        }
+
+        .ut-row:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .ut-row.header-row {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 0.7rem 1.5rem;
+            background: var(--bg-elevated);
+        }
+
+        .ut-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .ut-email {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+
+        .role-badge {
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: center;
+        }
+
+        .role-badge.candidate {
+            background: rgba(99, 102, 241, 0.12);
+            color: #818cf8;
+        }
+
+        .role-badge.recruiter {
+            background: rgba(16, 185, 129, 0.12);
+            color: #10b981;
+        }
+
+        .role-badge.admin {
+            background: rgba(239, 68, 68, 0.12);
+            color: #ef4444;
+        }
+
+        .btn-del {
+            font-family: inherit;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.08);
+            color: #ef4444;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-del:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-del:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success {
+            background: #065f46;
+            color: #6ee7b7;
+        }
+
+        .toast.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="logo">⚙️</div> Admin Panel
+            </div>
+            <a class="nav-item active" href="/admin"><span class="nav-icon">👥</span> User Management</a>
+            <div class="sidebar-section">Navigation</div>
+            <a class="nav-item" href="/recruiter"><span class="nav-icon">🏆</span> Leaderboard</a>
+            <a class="nav-item" href="/dashboard"><span class="nav-icon">🏠</span> Dashboard</a>
+            <div class="sidebar-section">Account</div>
+            <a class="nav-item" href="#" onclick="logout()"><span class="nav-icon">🚪</span> Logout</a>
+            <div class="sidebar-footer">
+                <div class="user-card-side">
+                    <div class="user-avatar">{{ user.name[0] }}</div>
+                    <div class="user-info-side">
+                        <div class="name">{{ user.name }}</div>
+                        <div class="role">{{ user.role }}</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="header">
+                <h1>⚙️ Admin — User Management</h1>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <span class="badge"
+                        style="background:rgba(239,68,68,0.15);color:#ef4444;padding:4px 12px;border-radius:12px;font-size:0.75rem;font-weight:700;">ADMIN</span>
+                    <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+                </div>
+            </header>
+
+            <div class="content">
+                <!-- Stats -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-value" id="s-total">—</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎓</div>
+                        <div class="stat-value" id="s-cand">—</div>
+                        <div class="stat-label">Candidates</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔍</div>
+                        <div class="stat-value" id="s-recr">—</div>
+                        <div class="stat-label">Recruiters</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🛡️</div>
+                        <div class="stat-value" id="s-admin">—</div>
+                        <div class="stat-label">Admins</div>
+                    </div>
+                </div>
+
+                <!-- Create User -->
+                <div class="form-card">
+                    <h2>➕ Create New User</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Full Name</label>
+                            <input id="f-name" class="form-input" placeholder="e.g. John Smith" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input id="f-email" class="form-input" type="email" placeholder="e.g. john@company.com" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input id="f-pass" class="form-input" type="text" placeholder="e.g. pass@123" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Role</label>
+                            <select id="f-role" class="form-select">
+                                <option value="candidate">Candidate</option>
+                                <option value="recruiter">Recruiter</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-form btn-create" onclick="createUser()">➕ Create User</button>
+                    <div id="form-status" style="font-size:0.82rem;margin-top:0.5rem;"></div>
+                </div>
+
+                <!-- User Table -->
+                <div class="user-table">
+                    <div class="ut-header">
+                        <h2>📋 All Users</h2>
+                        <input type="text" id="user-search" class="form-input" placeholder="🔍 Search…"
+                            style="width:250px" oninput="filterUsers()">
+                    </div>
+                    <div class="ut-row header-row">
+                        <div>Name</div>
+                        <div>Email</div>
+                        <div>Role</div>
+                        <div>Action</div>
+                    </div>
+                    <div id="user-body"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let allUsers = [];
+
+        async function loadUsers() {
+            const res = await fetch('/api/admin/users');
+            const data = await res.json();
+            allUsers = data.users || [];
+            renderUsers(allUsers);
+            updateStats(allUsers);
+        }
+
+        function updateStats(users) {
+            document.getElementById('s-total').textContent = users.length;
+            document.getElementById('s-cand').textContent = users.filter(u => u.role === 'candidate').length;
+            document.getElementById('s-recr').textContent = users.filter(u => u.role === 'recruiter').length;
+            document.getElementById('s-admin').textContent = users.filter(u => u.role === 'admin').length;
+        }
+
+        function renderUsers(users) {
+            const body = document.getElementById('user-body');
+            body.innerHTML = users.map(u => `
+                <div class="ut-row">
+                    <div class="ut-name">${u.name}</div>
+                    <div class="ut-email">${u.email}</div>
+                    <div><span class="role-badge ${u.role}">${u.role}</span></div>
+                    <div>
+                        <button class="btn-del" onclick="deleteUser('${u.email}')" ${u.role === 'admin' ? 'disabled title="Cannot delete admins"' : ''}>
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterUsers() {
+            const q = document.getElementById('user-search').value.toLowerCase();
+            renderUsers(allUsers.filter(u =>
+                u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.includes(q)
+            ));
+        }
+
+        async function createUser() {
+            const name = document.getElementById('f-name').value.trim();
+            const email = document.getElementById('f-email').value.trim();
+            const password = document.getElementById('f-pass').value;
+            const role = document.getElementById('f-role').value;
+            const status = document.getElementById('form-status');
+
+            if (!name || !email || !password) {
+                status.innerHTML = '<span style="color:#ef4444;">❌ All fields are required</span>';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, role })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    status.innerHTML = `<span style="color:#10b981;">✅ Created ${data.name} (${data.role})</span>`;
+                    document.getElementById('f-name').value = '';
+                    document.getElementById('f-email').value = '';
+                    document.getElementById('f-pass').value = '';
+                    loadUsers();
+                    showToast(`✅ ${data.name} created as ${data.role}`, 'success');
+                } else {
+                    status.innerHTML = `<span style="color:#ef4444;">❌ ${data.error}</span>`;
+                }
+            } catch (e) {
+                status.innerHTML = `<span style="color:#ef4444;">❌ ${e.message}</span>`;
+            }
+        }
+
+        async function deleteUser(email) {
+            if (!confirm(`Delete user ${email}?`)) return;
+            try {
+                const res = await fetch(`/api/admin/users/${email}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('🗑️ User deleted', 'success');
+                    loadUsers();
+                } else {
+                    showToast('❌ ' + data.error, 'error');
+                }
+            } catch (e) {
+                showToast('❌ ' + e.message, 'error');
+            }
+        }
+
+        function showToast(msg, type) {
+            const t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        async function logout() {
+            await fetch("/api/auth/logout", { method: "POST" });
+            window.location.href = "/";
+        }
+
+        loadUsers();
+    </script>
+</body>
+
+</html>

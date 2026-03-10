@@ -1,6 +1,5 @@
 """
 config.py — Platform Configuration
-Set your OpenRouter API key here or in a .env file.
 """
 import os
 from dotenv import load_dotenv
@@ -8,29 +7,75 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── OpenRouter LLM ──────────────────────────────────────────
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
 LLM_MODEL = "arcee-ai/trinity-large-preview:free"
+
+# ── ElevenLabs STT ──────────────────────────────────────────
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "sk_731f5124d148dce5da10b34d8789430a32317b8f5dbccdb7")
 
 # ── Flask ────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("SECRET_KEY", "interview_platform_secret_2026")
 DEBUG      = os.getenv("FLASK_ENV", "development") == "development"
-PORT       = int(os.getenv("PORT", 5055))   # HF Spaces injects PORT=7860
+PORT       = int(os.getenv("PORT", 5055))
 
 # ── Interview Settings ────────────────────────────────────────
-MAX_QUESTIONS = 10          # max questions per session
-MIN_QUESTIONS = 5           # minimum before ending
+MAX_QUESTIONS = 10
+MIN_QUESTIONS = 5
 INTERVIEW_DURATION_MINS = 45
 
-# Difficulty scoring thresholds
-DIFFICULTY_INCREASE_THRESHOLD = 75   # score > this → harder question
-DIFFICULTY_DECREASE_THRESHOLD = 40   # score < this → easier question
+DIFFICULTY_INCREASE_THRESHOLD = 75
+DIFFICULTY_DECREASE_THRESHOLD = 40
 
-# ── Demo Users (replace with real DB in production) ──────────
+# ── Interview Phases ──────────────────────────────────────────
+INTERVIEW_PHASES = {
+    "phase1_communication": {
+        "name": "Phase 1 — Communication",
+        "icon": "🗣️",
+        "description": "Tests English communication, articulation, clarity of thought, and professional expression.",
+        "session_type": "communication",
+        "tags": ["Communication", "English", "Soft Skills"],
+        "max_questions": 8,
+        "color": "cyan"
+    },
+    "phase2_aptitude": {
+        "name": "Phase 2 — Aptitude",
+        "icon": "🧠",
+        "description": "Pure aptitude: logical reasoning, quantitative analysis, problem-solving, and critical thinking.",
+        "session_type": "aptitude",
+        "tags": ["Logic", "Reasoning", "Quantitative"],
+        "max_questions": 10,
+        "color": "warning"
+    },
+    "phase3_coding": {
+        "name": "Phase 3 — Coding",
+        "icon": "💻",
+        "description": "Advanced coding: data structures, algorithms, system design. Moderate to tough difficulty.",
+        "session_type": "coding",
+        "tags": ["Coding", "DS&A", "Advanced"],
+        "max_questions": 10,
+        "color": "primary"
+    }
+}
+
+# ── Demo Users ────────────────────────────────────────────────
+# 10 Candidates
 DEMO_USERS = {
-    "candidate@demo.com": {"password": "demo123", "role": "candidate", "name": "Alex Johnson"},
-    "recruiter@demo.com": {"password": "recruiter123", "role": "recruiter", "name": "Sarah Chen"},
-    "admin@demo.com":     {"password": "admin123",     "role": "admin",     "name": "Admin User"},
+    "candidate1@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "Alex Johnson"},
+    "candidate2@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "Priya Sharma"},
+    "candidate3@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "James Wilson"},
+    "candidate4@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "Ananya Reddy"},
+    "candidate5@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "Michael Brown"},
+    "candidate6@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "Sneha Patel"},
+    "candidate7@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "David Lee"},
+    "candidate8@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "Kavya Nair"},
+    "candidate9@demo.com":  {"password": "cand@123",  "role": "candidate",  "name": "Robert Garcia"},
+    "candidate10@demo.com": {"password": "cand@123",  "role": "candidate",  "name": "Meera Iyer"},
+
+    # 3 Recruiters
+    "recruiter1@demo.com":  {"password": "recr@123",  "role": "recruiter",  "name": "Sarah Chen"},
+    "recruiter2@demo.com":  {"password": "recr@123",  "role": "recruiter",  "name": "Tom Anderson"},
+    "recruiter3@demo.com":  {"password": "recr@123",  "role": "recruiter",  "name": "Neha Gupta"},
 }
 
 # ── Question Banks (fallback if LLM unavailable) ──────────────
@@ -46,12 +91,24 @@ FALLBACK_QUESTIONS = {
         {"q": "Tell me about a time you handled a conflict in a team.", "difficulty": 1, "topic": "Teamwork"},
         {"q": "Describe a project where you failed and what you learned.", "difficulty": 2, "topic": "Growth"},
         {"q": "How do you prioritize tasks when everything seems urgent?", "difficulty": 2, "topic": "Time Management"},
-        {"q": "Tell me about your greatest professional achievement.", "difficulty": 1, "topic": "Accomplishment"},
-        {"q": "How do you handle feedback or criticism?", "difficulty": 1, "topic": "Communication"},
     ],
     "mock": [
         {"q": "Walk me through your background and what brings you here today.", "difficulty": 1, "topic": "Introduction"},
         {"q": "What are your key strengths?", "difficulty": 1, "topic": "Self-Assessment"},
-        {"q": "Where do you see yourself in 5 years?", "difficulty": 1, "topic": "Goals"},
-    ]
+    ],
+    "communication": [
+        {"q": "Introduce yourself in a professional manner, as if you were meeting a new team for the first time.", "difficulty": 1, "topic": "Self Introduction"},
+        {"q": "Explain a complex technical concept you know to someone without a tech background.", "difficulty": 2, "topic": "Communication Clarity"},
+        {"q": "Describe a situation where effective communication helped resolve a problem.", "difficulty": 2, "topic": "Professional Communication"},
+    ],
+    "aptitude": [
+        {"q": "A train travels 120 km in 2 hours. If it increases speed by 20 km/h, how long will it take to cover 180 km?", "difficulty": 1, "topic": "Quantitative"},
+        {"q": "Complete the pattern: 2, 6, 12, 20, 30, ?", "difficulty": 1, "topic": "Logical Reasoning"},
+        {"q": "If all roses are flowers, and some flowers fade quickly, can we conclude that some roses fade quickly? Explain.", "difficulty": 2, "topic": "Critical Thinking"},
+    ],
+    "coding": [
+        {"q": "Implement a function to find the longest palindromic substring in a given string. Analyze time complexity.", "difficulty": 2, "topic": "Strings & DP"},
+        {"q": "Design a LRU Cache with O(1) get and put operations. Provide code.", "difficulty": 3, "topic": "Data Structures"},
+        {"q": "Given a binary tree, serialize and deserialize it. Explain your approach.", "difficulty": 3, "topic": "Trees"},
+    ],
 }

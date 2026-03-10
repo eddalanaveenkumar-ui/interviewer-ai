@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Apply — {{ job.title }} | InterviewAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/main.css" />
+    <style>
+        body {
+            background: var(--bg-base);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .apply-container {
+            width: 100%;
+            max-width: 720px;
+        }
+
+        .job-header {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .job-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #6366f1, #06b6d4, #8b5cf6);
+        }
+
+        .job-logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #6366f1, #06b6d4);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+
+        .job-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+        }
+
+        .job-company {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .job-desc {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .job-skills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.75rem;
+        }
+
+        .skill-tag {
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            background: rgba(99, 102, 241, 0.12);
+            color: #818cf8;
+        }
+
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .form-card h2 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-section h3 {
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .form-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-label .required {
+            color: #ef4444;
+        }
+
+        .form-input,
+        .form-textarea {
+            font-family: inherit;
+            font-size: 0.88rem;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+            line-height: 1.6;
+        }
+
+        .file-upload {
+            border: 2px dashed var(--border-subtle);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-upload:hover {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.04);
+        }
+
+        .file-upload .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-upload .label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .file-upload .chosen {
+            font-size: 0.82rem;
+            color: #10b981;
+            font-weight: 600;
+            margin-top: 0.3rem;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .result-card.show {
+            display: block;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: none;
+                opacity: 1;
+            }
+        }
+
+        .score-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .score-item {
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg-elevated);
+            border-radius: 10px;
+        }
+
+        .score-item .value {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .score-item .label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        .score-item .value.high {
+            color: #10b981;
+        }
+
+        .score-item .value.mid {
+            color: #f59e0b;
+        }
+
+        .score-item .value.low {
+            color: #ef4444;
+        }
+
+        .test-link {
+            display: block;
+            text-align: center;
+            padding: 14px;
+            background: linear-gradient(135deg, #10b981, #06b6d4);
+            color: #fff;
+            border-radius: 10px;
+            font-weight: 700;
+            text-decoration: none;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+
+        .test-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="apply-container">
+        <!-- Job Header -->
+        <div class="job-header">
+            <div class="job-logo">🤖</div>
+            <h1 class="job-title">{{ job.title }}</h1>
+            <p class="job-company">by {{ job.recruiter_name }} · Posted {{ job.created_at[:10] }}</p>
+            {% if job.description %}
+            <p class="job-desc">{{ job.description }}</p>
+            {% endif %}
+            <div class="job-skills">
+                {% for skill in job.required_skills %}
+                <span class="skill-tag">{{ skill }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Application Form -->
+        <div class="form-card" id="form-card">
+            <h2>📝 Apply for this Position</h2>
+
+            <form id="applyForm" enctype="multipart/form-data">
+                <!-- Personal Info -->
+                <div class="form-section">
+                    <h3>👤 Personal Information</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Full Name <span class="required">*</span></label>
+                            <input name="name" class="form-input" placeholder="e.g. John Smith" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email <span class="required">*</span></label>
+                            <input name="email" type="email" class="form-input" placeholder="john@email.com" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input name="phone" class="form-input" placeholder="+91 9876543210" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Social Profiles -->
+                <div class="form-section">
+                    <h3>🔗 Social & Professional Profiles</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">LinkedIn Profile URL</label>
+                            <input name="linkedin" class="form-input" placeholder="https://linkedin.com/in/yourname" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">GitHub / Code Repo</label>
+                            <input name="github" class="form-input" placeholder="https://github.com/yourname" />
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label">Portfolio / Website</label>
+                            <input name="portfolio" class="form-input" placeholder="https://yoursite.com" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resume -->
+                <div class="form-section">
+                    <h3>📄 Resume</h3>
+                    <div class="file-upload" onclick="document.getElementById('resumeFile').click()">
+                        <div class="icon">📎</div>
+                        <div class="label">Click to upload resume (PDF, DOC) — Max 5MB</div>
+                        <div class="chosen" id="chosen-file"></div>
+                        <input type="file" name="resume_file" id="resumeFile" accept=".pdf,.doc,.docx,.txt"
+                            onchange="document.getElementById('chosen-file').textContent = this.files[0]?.name || ''" />
+                    </div>
+                    <div style="text-align:center;margin:0.75rem 0;font-size:0.78rem;color:var(--text-muted);">
+                        — OR paste your resume text below —
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Resume Text (paste here for AI analysis)</label>
+                        <textarea name="resume_text" class="form-textarea"
+                            placeholder="Paste your resume content here for ATS scoring and experience verification...&#10;&#10;Example:&#10;John Smith&#10;Software Engineer | 3 years experience&#10;&#10;Experience:&#10;- SDE at XYZ Corp (2023-2025): Built REST APIs, managed CI/CD...&#10;&#10;Skills: Python, Java, SQL, Docker, AWS&#10;Education: B.Tech CSE, ABC University (2020-2024)"></textarea>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <span id="btnText">🚀 Submit Application</span>
+                    <div class="spinner" style="display:none" id="btnSpinner"></div>
+                </button>
+            </form>
+        </div>
+
+        <!-- Result Card (shown after submission) -->
+        <div class="result-card" id="result-card">
+            <h2 id="result-title">📊 Application Screening Results</h2>
+            <p id="result-msg" style="font-size:0.88rem;color:var(--text-secondary);margin:0.5rem 0 1rem;"></p>
+            <div class="score-row">
+                <div class="score-item">
+                    <div class="value" id="r-ats">—</div>
+                    <div class="label">ATS Resume Score</div>
+                </div>
+                <div class="score-item">
+                    <div class="value" id="r-auth">—</div>
+                    <div class="label">Experience Authenticity</div>
+                </div>
+                <div class="score-item">
+                    <div class="value" id="r-social">—</div>
+                    <div class="label">Social Profile Score</div>
+                </div>
+            </div>
+            <a class="test-link" id="test-link" href="#">
+                📝 Continue to Screening Test →
+            </a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('applyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('btnSpinner');
+            const btnText = document.getElementById('btnText');
+
+            btn.disabled = true;
+            btnText.textContent = 'Analyzing resume & profiles…';
+            spinner.style.display = 'block';
+
+            const formData = new FormData(e.target);
+
+            try {
+                const res = await fetch('/api/apply/{{ job.job_id }}', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // Show results
+                    document.getElementById('form-card').style.display = 'none';
+                    const resultCard = document.getElementById('result-card');
+                    resultCard.classList.add('show');
+
+                    document.getElementById('result-msg').textContent = data.message;
+
+                    const ats = data.ats_score || 0;
+                    const auth = data.auth_score || 0;
+                    const social = data.social_score || 0;
+
+                    const atsEl = document.getElementById('r-ats');
+                    atsEl.textContent = ats + '%';
+                    atsEl.className = 'value ' + (ats >= 70 ? 'high' : ats >= 40 ? 'mid' : 'low');
+
+                    const authEl = document.getElementById('r-auth');
+                    authEl.textContent = auth + '%';
+                    authEl.className = 'value ' + (auth >= 70 ? 'high' : auth >= 40 ? 'mid' : 'low');
+
+                    const socialEl = document.getElementById('r-social');
+                    socialEl.textContent = social + '%';
+                    socialEl.className = 'value ' + (social >= 70 ? 'high' : social >= 40 ? 'mid' : 'low');
+
+                    document.getElementById('test-link').href = data.test_url;
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btnText.textContent = '🚀 Submit Application';
+                    spinner.style.display = 'none';
+                }
+            } catch (err) {
+                alert('Connection error: ' + err.message);
+                btn.disabled = false;
+                btnText.textContent = '🚀 Submit Application';
+                spinner.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>
